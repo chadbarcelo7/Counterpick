@@ -6,7 +6,205 @@
   <title>COUNTERPICK</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js">
+// ── TOP 10 ────────────────────────────────────────────────────────────────────
+document.getElementById('top10-input').addEventListener('keydown', e => { if(e.key==='Enter') doTop10(); });
+
+function fillTop10(cat) {
+  document.getElementById('top10-input').value = cat;
+  doTop10();
+}
+
+async function doTop10() {
+  const category = document.getElementById('top10-input').value.trim();
+  if (!category) return;
+  document.getElementById('top10-result').style.display = 'none';
+  document.getElementById('top10-error').style.display = 'none';
+  document.getElementById('top10-loading').style.display = 'block';
+  document.getElementById('top10-btn').disabled = true;
+
+  try {
+    const res = await fetch('/api/top10', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({category})});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderTop10(data);
+  } catch(err) {
+    const el = document.getElementById('top10-error');
+    el.textContent = '⚠ ' + (err.message||'Something went wrong.');
+    el.style.display = 'block';
+  } finally {
+    document.getElementById('top10-loading').style.display = 'none';
+    document.getElementById('top10-btn').disabled = false;
+  }
+}
+
+function renderTop10(d) {
+  document.getElementById('top10-icon').textContent = d.category_icon || '🏆';
+  document.getElementById('top10-category-title').textContent = d.category || '—';
+  document.getElementById('top10-ranking-basis').textContent = d.ranking_basis || '';
+  document.getElementById('top10-meta').innerHTML = `Updated: ${d.last_updated||'2025'}<br>${(d.products||[]).length} products ranked`;
+
+  const grid = document.getElementById('top10-grid');
+  grid.innerHTML = '';
+
+  (d.products || []).forEach((p, idx) => {
+    const rank = p.rank || (idx + 1);
+    const tierClass = (p.price_tier||'mid-range').replace(' ','-').toLowerCase();
+    const awardClass = p.award ? (p.award.toLowerCase().includes('overall') ? 'best-overall' : p.award.toLowerCase().includes('budget') ? 'best-budget' : 'default') : '';
+
+    const card = document.createElement('div');
+    card.className = `top10-card rank-${rank <= 3 ? rank : 'other'}`;
+
+    card.innerHTML = `
+      <div class="rank-block">
+        <div class="rank-num">${rank}</div>
+        <div class="top10-img-wrap" id="t10-img-wrap-${idx}">
+          <div class="mini-spinner" id="t10-spinner-${idx}"></div>
+          <img id="t10-img-${idx}" alt="${p.product_search||p.name||''}"/>
+        </div>
+        <div class="score-bar-mini"><div class="score-bar-mini-fill" style="width:${p.score||0}%"></div></div>
+        <div class="rank-score">${p.score||0}/100</div>
+      </div>
+      <div class="top10-main">
+        <div class="top10-title-row">
+          <div class="top10-name">${p.name||'—'}</div>
+          ${p.award ? `<span class="award-badge ${awardClass}">${p.award}</span>` : ''}
+        </div>
+        <div class="top10-tagline">${p.tagline||''}</div>
+        <div class="top10-specs">
+          ${(p.key_specs||[]).map(s => `<span class="spec-chip">${s}</span>`).join('')}
+        </div>
+        <div class="top10-pros-cons">
+          <ul class="mini-list pros">${(p.pros||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
+          <ul class="mini-list cons">${(p.cons||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
+        </div>
+      </div>
+      <div class="top10-right">
+        <div class="top10-price">${p.price_estimate||'—'}</div>
+        <span class="price-tier-chip ${tierClass}">${p.price_tier||'mid-range'}</span>
+        <a class="top10-buy-btn" href="${p.buy_url||'#'}" target="_blank" rel="noopener">Buy Now →</a>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    // Lazy-load image
+    const searchQuery = p.product_search || p.name || '';
+    const imgEl = document.getElementById(`t10-img-${idx}`);
+    const spinEl = document.getElementById(`t10-spinner-${idx}`);
+    loadImage(searchQuery, imgEl, spinEl, 120);
+  });
+
+  document.getElementById('top10-result').style.display = 'block';
+  document.getElementById('top10-result').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+
+// ── IMAGE FETCHING ─────────────────────────────────────────────────────────
+const CORS_PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithProxy(url, proxyIndex = 0) {
+  if (proxyIndex >= CORS_PROXIES.length) return null;
+  try {
+    const proxied = CORS_PROXIES[proxyIndex](url);
+    const res = await fetch(proxied, { signal: AbortSignal.timeout(7000) });
+    if (!res.ok) return fetchWithProxy(url, proxyIndex + 1);
+    const text = await res.text();
+    try { const j = JSON.parse(text); return j.contents || text; } catch { return text; }
+  } catch { return fetchWithProxy(url, proxyIndex + 1); }
+}
+
+async function getProductImageUrl(query) {
+  if (!query) return null;
+  const q = encodeURIComponent(query);
+
+  // 1: DuckDuckGo 2-step
+  try {
+    const html = await fetchWithProxy('https://duckduckgo.com/?q=' + q + '&ia=images&iax=images');
+    if (html) {
+      const vqdM = html.match(/vqd=["']?([0-9-]+)["']?/);
+      if (vqdM) {
+        const jsonText = await fetchWithProxy(
+          'https://duckduckgo.com/i.js?q=' + q + '&vqd=' + vqdM[1] + '&o=json&p=1&s=0&u=bing&f=,,,&l=us-en'
+        );
+        if (jsonText) {
+          const data = JSON.parse(jsonText);
+          for (const r of (data.results || []).slice(0, 8)) {
+            const img = r.image || r.thumbnail || '';
+            if (img && !/logo|icon|sprite|\.svg|\.gif/i.test(img)) return img;
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // 2: Bing Images
+  try {
+    const html = await fetchWithProxy('https://www.bing.com/images/search?q=' + q + '&first=1');
+    if (html) {
+      const m = html.match(/murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/)
+             || html.match(/"murl":"(https?:\/\/[^"]+?)"/);
+      if (m && !/logo|icon|\.svg|\.gif/i.test(m[1])) return m[1];
+    }
+  } catch {}
+
+  // 3: Google Images
+  try {
+    const html = await fetchWithProxy('https://www.google.com/search?q=' + q + '+product&tbm=isch');
+    if (html) {
+      const matches = [...html.matchAll(/"ou":"(https?:\/\/[^"]+?)"/g)];
+      for (const m of matches.slice(0, 5)) {
+        if (!/logo|icon|\.svg|\.gif/i.test(m[1])) return decodeURIComponent(m[1]);
+      }
+    }
+  } catch {}
+
+  // 4: Amazon
+  try {
+    const html = await fetchWithProxy('https://www.amazon.com/s?k=' + q);
+    if (html) {
+      const m = html.match(/src="(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+?\.jpg)"/);
+      if (m) return m[1];
+    }
+  } catch {}
+
+  return null;
+}
+
+function tryLoad(imgEl, src) {
+  return new Promise(res => {
+    const t = setTimeout(() => res(false), 8000);
+    imgEl.onload  = () => { clearTimeout(t); res(true); };
+    imgEl.onerror = () => { clearTimeout(t); res(false); };
+    imgEl.src = src;
+  });
+}
+
+async function loadImage(query, imgEl, placeholderEl, size) {
+  size = size || 300;
+  try {
+    const url = await getProductImageUrl(query);
+    if (url) {
+      const proxied = 'https://images.weserv.nl/?url=' + encodeURIComponent(url) + '&w=' + size + '&h=' + size + '&fit=contain&bg=0d0d0d&output=webp';
+      if (await tryLoad(imgEl, proxied) || await tryLoad(imgEl, url)) {
+        if (placeholderEl) placeholderEl.style.display = 'none';
+        imgEl.style.display = 'block';
+        return;
+      }
+    }
+  } catch {}
+  // Styled fallback
+  const initial = (query || '?').trim()[0].toUpperCase();
+  const shortName = (query || '').trim().slice(0, 22).toUpperCase();
+  if (placeholderEl) {
+    placeholderEl.innerHTML = '<div style="text-align:center;padding:1rem"><div style="font-family:Bebas Neue,sans-serif;font-size:3rem;color:#ff3b00;opacity:.7;line-height:1">' + initial + '</div><div style="font-family:Space Mono,monospace;font-size:.5rem;color:#555;letter-spacing:.1em;margin-top:.5rem;text-transform:uppercase;line-height:1.4">' + shortName + '</div></div>';
+  }
+}
+// ── END IMAGE FETCHING ─────────────────────────────────────────────────────
+</script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
@@ -238,6 +436,190 @@
     .sc-reason{background:#111;padding:1rem 1.5rem;font-size:.82rem;color:#ccc;line-height:1.6;border-left:3px solid #ff3b00;margin:1px 0}
     .sc-footer{background:#111;padding:.75rem 1.5rem;font-family:'Space Mono',monospace;font-size:.5rem;color:#555;letter-spacing:.1em;text-transform:uppercase;display:flex;justify-content:space-between}
 
+
+    /* ── TOP 10 ── */
+    .top10-grid { display: flex; flex-direction: column; gap: 1px; background: var(--border); }
+    .top10-card {
+      background: var(--surface);
+      display: grid;
+      grid-template-columns: 60px 1fr auto;
+      gap: 1.5rem;
+      padding: 1.5rem;
+      align-items: start;
+      transition: background .15s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .top10-card:hover { background: var(--surface2); }
+    .top10-card.rank-1 { border-left: 3px solid var(--accent2); }
+    .top10-card.rank-2 { border-left: 3px solid #aaa; }
+    .top10-card.rank-3 { border-left: 3px solid #cd7f32; }
+    .rank-block { text-align: center; }
+    .rank-num {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 2.5rem;
+      line-height: 1;
+      color: var(--border);
+    }
+    .top10-card.rank-1 .rank-num { color: var(--accent2); }
+    .top10-card.rank-2 .rank-num { color: #aaa; }
+    .top10-card.rank-3 .rank-num { color: #cd7f32; }
+    .rank-score {
+      font-family: 'Space Mono', monospace;
+      font-size: .55rem;
+      color: var(--muted);
+      letter-spacing: .1em;
+    }
+    .top10-img-wrap {
+      width: 48px;
+      height: 48px;
+      background: #0d0d0d;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      margin: 0 auto .4rem;
+      position: relative;
+    }
+    .top10-img-wrap img { width: 100%; height: 100%; object-fit: contain; padding: 3px; display: none; }
+    .top10-img-wrap .mini-spinner {
+      width: 16px; height: 16px;
+      border: 1.5px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin .8s linear infinite;
+    }
+    .top10-main { display: flex; flex-direction: column; gap: .5rem; }
+    .top10-title-row { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+    .top10-name {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: .04em;
+      line-height: 1;
+      color: var(--text);
+    }
+    .award-badge {
+      font-family: 'Space Mono', monospace;
+      font-size: .55rem;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      padding: .2rem .6rem;
+      border-radius: 2px;
+    }
+    .award-badge.best-overall { background: var(--accent); color: #fff; }
+    .award-badge.best-budget  { background: var(--green); color: #000; }
+    .award-badge.default      { background: var(--surface2); border: 1px solid var(--border); color: var(--muted); }
+    .top10-tagline { font-size: .85rem; color: #999; font-weight: 300; line-height: 1.4; }
+    .top10-specs {
+      display: flex; flex-wrap: wrap; gap: .4rem;
+    }
+    .spec-chip {
+      font-family: 'Space Mono', monospace;
+      font-size: .55rem;
+      letter-spacing: .08em;
+      border: 1px solid var(--border);
+      color: var(--muted);
+      padding: .2rem .55rem;
+      border-radius: 2px;
+    }
+    .top10-pros-cons { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; margin-top: .25rem; }
+    .mini-list { list-style: none; display: flex; flex-direction: column; gap: .25rem; }
+    .mini-list li { font-size: .8rem; color: #bbb; font-weight: 300; padding-left: 1rem; position: relative; }
+    .mini-list.pros li::before  { content: '+'; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+    .mini-list.cons li::before  { content: '−'; position: absolute; left: 0; color: var(--accent); font-weight: 700; }
+    .top10-right { display: flex; flex-direction: column; align-items: flex-end; gap: .6rem; min-width: 100px; }
+    .top10-price {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.3rem;
+      letter-spacing: .04em;
+      color: var(--green);
+    }
+    .price-tier-chip {
+      font-family: 'Space Mono', monospace;
+      font-size: .52rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      padding: .2rem .55rem;
+      border-radius: 2px;
+    }
+    .price-tier-chip.budget       { background: rgba(0,232,122,.1);  border: 1px solid var(--green);   color: var(--green);   }
+    .price-tier-chip.mid-range    { background: rgba(255,204,0,.08); border: 1px solid var(--accent2); color: var(--accent2); }
+    .price-tier-chip.premium      { background: rgba(56,189,248,.08);border: 1px solid var(--blue);    color: var(--blue);    }
+    .price-tier-chip.ultra-premium{ background: rgba(167,139,250,.1);border: 1px solid var(--purple);  color: var(--purple);  }
+    .top10-buy-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: .58rem;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: .4rem .9rem;
+      cursor: pointer;
+      text-decoration: none;
+      border-radius: 2px;
+      transition: border-color .15s, color .15s;
+      white-space: nowrap;
+    }
+    .top10-buy-btn:hover { border-color: var(--accent); color: var(--accent); }
+    .top10-header-bar {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      padding: 1.2rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .top10-category-title {
+      font-family: 'Bebas Neue', sans-serif;
+      font-size: 1.6rem;
+      letter-spacing: .05em;
+    }
+    .top10-meta {
+      font-family: 'Space Mono', monospace;
+      font-size: .58rem;
+      color: var(--muted);
+      letter-spacing: .08em;
+      line-height: 1.6;
+      margin-left: auto;
+      text-align: right;
+    }
+    .score-bar-mini {
+      height: 3px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: .3rem;
+      width: 80px;
+    }
+    .score-bar-mini-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      border-radius: 2px;
+    }
+    .cat-presets { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: 1rem; justify-content: center; }
+    .cat-preset-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: .6rem;
+      letter-spacing: .08em;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      padding: .4rem .9rem;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .cat-preset-btn:hover { border-color: var(--accent2); color: var(--accent2); }
+    @media(max-width:640px) {
+      .top10-card { grid-template-columns: 48px 1fr; }
+      .top10-right { display: none; }
+      .top10-pros-cons { grid-template-columns: 1fr; }
+    }
+
     footer{border-top:1px solid var(--border);padding:1.5rem 2rem;text-align:center;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase}
 
     @media(max-width:640px){
@@ -296,9 +678,11 @@
 <header>
   <div class="logo">COUNTER<span>PICK</span></div>
   <div class="tagline">AI Product Alternatives</div>
-  <div class="mode-tabs">
+  <a href="/halloffame" style="font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--accent2);border:1px solid rgba(255,204,0,.3);padding:.4rem .9rem;border-radius:2px;text-decoration:none;transition:all .15s;white-space:nowrap" onmouseover="this.style.background='rgba(255,204,0,.08)'" onmouseout="this.style.background='transparent'">🏆 Hall of Fame</a>
+    <div class="mode-tabs">
     <button class="mode-tab active" onclick="setMode('search')">⚡ Counterpick</button>
     <button class="mode-tab" onclick="setMode('battle')">⚔ Battle</button>
+    <button class="mode-tab" onclick="setMode('top10')">🏆 Top 10</button>
   </div>
 </header>
 
@@ -469,6 +853,54 @@
   </div>
 </div>
 
+
+
+<!-- TOP 10 MODE -->
+<div id="view-top10" class="view">
+  <section class="hero">
+    <div class="hero-eyebrow">Top 10 Rankings</div>
+    <h1>The best<br>of any<br><em>category.</em></h1>
+    <p>Type any product category and get an AI-ranked top 10 list with scores, specs, prices, and buy links.</p>
+
+    <div class="search-wrap" style="max-width:540px">
+      <input id="top10-input" type="text" placeholder="e.g. wireless headphones, robot vacuums, gaming mice…" autocomplete="off" style="flex:1;background:var(--surface);border:none;outline:none;padding:1.1rem 1.4rem;font-family:'DM Sans',sans-serif;font-size:1rem;color:var(--text)"/>
+      <button class="search-btn" id="top10-btn" onclick="doTop10()">RANK IT →</button>
+    </div>
+
+    <div class="cat-presets">
+      <button class="cat-preset-btn" onclick="fillTop10('Wireless Headphones')">🎧 Wireless Headphones</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Robot Vacuums')">🤖 Robot Vacuums</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Gaming Mice')">🖱 Gaming Mice</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Mechanical Keyboards')">⌨ Mechanical Keyboards</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Smartwatches')">⌚ Smartwatches</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Budget Laptops')">💻 Budget Laptops</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Air Fryers')">🍳 Air Fryers</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Electric Toothbrushes')">🦷 Electric Toothbrushes</button>
+      <button class="cat-preset-btn" onclick="fillTop10('4K TVs under $500')">📺 4K TVs under $500</button>
+      <button class="cat-preset-btn" onclick="fillTop10('Handheld Game Consoles')">🎮 Handheld Consoles</button>
+    </div>
+  </section>
+
+  <div id="top10-loading" style="display:none;text-align:center;padding:4rem 2rem">
+    <div class="loader-text">Ranking top 10…</div>
+    <div class="loader-bar"></div>
+  </div>
+  <div id="top10-error" style="display:none;max-width:580px;margin:2rem auto;border:1px solid var(--accent);padding:1.2rem;color:var(--accent);font-family:'Space Mono',monospace;font-size:.78rem;text-align:center"></div>
+
+  <div id="top10-result" style="display:none;max-width:900px;margin:0 auto;padding:0 2rem 5rem;animation:fadeUp .5s ease forwards">
+    <div class="top10-header-bar">
+      <span id="top10-icon" style="font-size:1.6rem">🏆</span>
+      <div>
+        <div class="top10-category-title" id="top10-category-title">—</div>
+        <div style="font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.08em" id="top10-ranking-basis">—</div>
+      </div>
+      <div class="top10-meta" id="top10-meta">—</div>
+    </div>
+    <div class="top10-grid" id="top10-grid"></div>
+  </div>
+</div>
+
+
 <footer>Counterpick — AI-powered product intelligence &nbsp;·&nbsp; Prices are estimates — always verify before buying</footer>
 
 <script>
@@ -481,9 +913,10 @@ let currentRegion = 'US';
 // ── MODE / TIER ───────────────────────────────────────────────────────────────
 function setMode(mode) {
   currentMode = mode;
-  document.querySelectorAll('.mode-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='search')||(i===1&&mode==='battle')));
+  document.querySelectorAll('.mode-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='search')||(i===1&&mode==='battle')||(i===2&&mode==='top10')));
   document.getElementById('view-search').classList.toggle('active', mode==='search');
   document.getElementById('view-battle').classList.toggle('active', mode==='battle');
+  document.getElementById('view-top10').classList.toggle('active', mode==='top10');
 }
 
 function setTier(btn) {
@@ -500,23 +933,6 @@ document.getElementById('battle-input-a').addEventListener('keydown', e => { if(
 document.getElementById('battle-input-b').addEventListener('keydown', e => { if(e.key==='Enter') doBattle(); });
 
 // ── IMAGE FETCH ───────────────────────────────────────────────────────────────
-async function fetchProductImage(searchQuery, imgEl, placeholderEl) {
-  const sources = [
-    () => scrapeGoogleImages(searchQuery),
-    () => scrapeBingImages(searchQuery),
-    () => scrapeAmazon(searchQuery),
-  ];
-  for (const src of sources) {
-    try {
-      const url = await src();
-      if (!url) continue;
-      const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300&h=300&fit=contain&bg=0d0d0d&output=webp`;
-      if (await tryLoad(imgEl, proxied)) { placeholderEl.style.display='none'; imgEl.style.display='block'; return; }
-      if (await tryLoad(imgEl, url))    { placeholderEl.style.display='none'; imgEl.style.display='block'; return; }
-    } catch(e) {}
-  }
-  showMonogram(placeholderEl, searchQuery);
-}
 
 function tryLoad(imgEl, src) {
   return new Promise(res => {
@@ -527,49 +943,6 @@ function tryLoad(imgEl, src) {
   });
 }
 
-async function scrapeGoogleImages(q) {
-  const url = `https://www.google.com/search?q=${encodeURIComponent(q+' product')}&tbm=isch&hl=en`;
-  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(7000)});
-  const d = await r.json();
-  const matches = (d.contents||'').match(/"ou":"(https?:\/\/[^"]+?)"/g)||[];
-  for (const m of matches) {
-    const u = m.replace(/"ou":"/, '').replace(/"$/, '');
-    if (!u.match(/\.(svg|gif)/i) && !u.includes('logo') && !u.includes('icon')) return decodeURIComponent(u);
-  }
-  return null;
-}
-
-async function scrapeBingImages(q) {
-  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&first=1`;
-  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(7000)});
-  const d = await r.json();
-  const m = (d.contents||'').match(/murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/);
-  if (m) return m[1];
-  const m2 = (d.contents||'').match(/"murl":"(https?:\/\/[^"]+?)"/);
-  return m2 ? m2[1] : null;
-}
-
-async function scrapeAmazon(q) {
-  const url = `https://www.amazon.com/s?k=${encodeURIComponent(q)}`;
-  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(7000)});
-  const d = await r.json();
-  const m = (d.contents||'').match(/src="(https:\/\/m\.media-amazon\.com\/images\/[^"]+?)"/);
-  return m ? m[1] : null;
-}
-
-function showMonogram(ph, name) {
-  const i = (name||'?').trim().charAt(0).toUpperCase();
-  ph.innerHTML = `<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="#161616"/><text x="40" y="54" font-family="Bebas Neue,sans-serif" font-size="46" fill="#ff3b00" text-anchor="middle" opacity=".8">${i}</text></svg><div class="ph-label" style="opacity:.4">No image</div>`;
-  ph.style.display='flex';
-}
-
-function resetImg(imgId, phId) {
-  const img = document.getElementById(imgId);
-  img.src=''; img.style.display='none';
-  const ph = document.getElementById(phId);
-  ph.innerHTML='<div class="spinner"></div><div class="ph-label">Loading…</div>';
-  ph.style.display='flex';
-}
 
 // ── COUNTERPICK SEARCH ────────────────────────────────────────────────────────
 async function doSearch() {
@@ -607,8 +980,8 @@ function renderResult(d) {
   const pickSearch = d.counterpick_product_search||d.counterpick_product||'';
   document.getElementById('r-orig-img').alt = origSearch;
   document.getElementById('r-pick-img').alt = pickSearch;
-  fetchProductImage(origSearch, document.getElementById('r-orig-img'), document.getElementById('orig-placeholder'));
-  fetchProductImage(pickSearch, document.getElementById('r-pick-img'), document.getElementById('pick-placeholder'));
+  loadImage(origSearch, document.getElementById('r-orig-img'), document.getElementById('orig-placeholder', 300));
+  loadImage(pickSearch, document.getElementById('r-pick-img'), document.getElementById('pick-placeholder', 300));
 
   document.getElementById('r-summary').textContent = d.reason_summary||'';
 
@@ -826,6 +1199,99 @@ function copyLink() {
 function closeShare() { document.getElementById('share-overlay').classList.remove('open'); }
 
 function showError(msg) { const el=document.getElementById('error-box'); el.textContent='⚠ '+msg; el.style.display='block'; }
+
+// ── TOP 10 ────────────────────────────────────────────────────────────────────
+document.getElementById('top10-input').addEventListener('keydown', e => { if(e.key==='Enter') doTop10(); });
+
+function fillTop10(cat) {
+  document.getElementById('top10-input').value = cat;
+  doTop10();
+}
+
+async function doTop10() {
+  const category = document.getElementById('top10-input').value.trim();
+  if (!category) return;
+  document.getElementById('top10-result').style.display = 'none';
+  document.getElementById('top10-error').style.display = 'none';
+  document.getElementById('top10-loading').style.display = 'block';
+  document.getElementById('top10-btn').disabled = true;
+
+  try {
+    const res = await fetch('/api/top10', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({category})});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderTop10(data);
+  } catch(err) {
+    const el = document.getElementById('top10-error');
+    el.textContent = '⚠ ' + (err.message||'Something went wrong.');
+    el.style.display = 'block';
+  } finally {
+    document.getElementById('top10-loading').style.display = 'none';
+    document.getElementById('top10-btn').disabled = false;
+  }
+}
+
+function renderTop10(d) {
+  document.getElementById('top10-icon').textContent = d.category_icon || '🏆';
+  document.getElementById('top10-category-title').textContent = d.category || '—';
+  document.getElementById('top10-ranking-basis').textContent = d.ranking_basis || '';
+  document.getElementById('top10-meta').innerHTML = `Updated: ${d.last_updated||'2025'}<br>${(d.products||[]).length} products ranked`;
+
+  const grid = document.getElementById('top10-grid');
+  grid.innerHTML = '';
+
+  (d.products || []).forEach((p, idx) => {
+    const rank = p.rank || (idx + 1);
+    const tierClass = (p.price_tier||'mid-range').replace(' ','-').toLowerCase();
+    const awardClass = p.award ? (p.award.toLowerCase().includes('overall') ? 'best-overall' : p.award.toLowerCase().includes('budget') ? 'best-budget' : 'default') : '';
+
+    const card = document.createElement('div');
+    card.className = `top10-card rank-${rank <= 3 ? rank : 'other'}`;
+
+    card.innerHTML = `
+      <div class="rank-block">
+        <div class="rank-num">${rank}</div>
+        <div class="top10-img-wrap" id="t10-img-wrap-${idx}">
+          <div class="mini-spinner" id="t10-spinner-${idx}"></div>
+          <img id="t10-img-${idx}" alt="${p.product_search||p.name||''}"/>
+        </div>
+        <div class="score-bar-mini"><div class="score-bar-mini-fill" style="width:${p.score||0}%"></div></div>
+        <div class="rank-score">${p.score||0}/100</div>
+      </div>
+      <div class="top10-main">
+        <div class="top10-title-row">
+          <div class="top10-name">${p.name||'—'}</div>
+          ${p.award ? `<span class="award-badge ${awardClass}">${p.award}</span>` : ''}
+        </div>
+        <div class="top10-tagline">${p.tagline||''}</div>
+        <div class="top10-specs">
+          ${(p.key_specs||[]).map(s => `<span class="spec-chip">${s}</span>`).join('')}
+        </div>
+        <div class="top10-pros-cons">
+          <ul class="mini-list pros">${(p.pros||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
+          <ul class="mini-list cons">${(p.cons||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
+        </div>
+      </div>
+      <div class="top10-right">
+        <div class="top10-price">${p.price_estimate||'—'}</div>
+        <span class="price-tier-chip ${tierClass}">${p.price_tier||'mid-range'}</span>
+        <a class="top10-buy-btn" href="${p.buy_url||'#'}" target="_blank" rel="noopener">Buy Now →</a>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    // Lazy-load image
+    const searchQuery = p.product_search || p.name || '';
+    const imgEl = document.getElementById(`t10-img-${idx}`);
+    const spinEl = document.getElementById(`t10-spinner-${idx}`);
+    loadImage(searchQuery, imgEl, spinEl, 120);
+  });
+
+  document.getElementById('top10-result').style.display = 'block';
+  document.getElementById('top10-result').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+
 </script>
 </body>
 </html>

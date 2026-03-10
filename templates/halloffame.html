@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>COUNTERPICK — Hall of Fame</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0a0a;--surface:#111;--surface2:#161616;--surface3:#1a1a1a;
+      --border:#1e1e1e;--border2:#2a2a2a;
+      --accent:#ff3b00;--accent2:#ffcc00;--text:#f0ede6;--muted:#555;
+      --green:#00e87a;--blue:#38bdf8;--purple:#a78bfa;--pink:#f472b6;
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");pointer-events:none;z-index:999;opacity:.5}
+
+    /* NAV */
+    nav{border-bottom:1px solid var(--border);padding:1rem 2rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;background:rgba(10,10,10,.95);backdrop-filter:blur(12px);z-index:100}
+    .nav-logo{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;letter-spacing:.1em;text-decoration:none;color:var(--text)}
+    .nav-logo span{color:var(--accent)}
+    .nav-back{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);text-decoration:none;border:1px solid var(--border);padding:.35rem .9rem;border-radius:2px;transition:all .15s;margin-left:auto}
+    .nav-back:hover{color:var(--accent);border-color:var(--accent)}
+    .nav-badge{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;background:var(--accent2);color:#000;padding:.3rem .8rem;border-radius:2px}
+
+    /* HERO */
+    .hof-hero{padding:5rem 2rem 3rem;max-width:1100px;margin:0 auto;text-align:center}
+    .hof-eyebrow{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.35em;color:var(--accent);text-transform:uppercase;margin-bottom:1rem}
+    .hof-title{font-family:'Bebas Neue',sans-serif;font-size:clamp(3.5rem,9vw,7rem);line-height:.9;letter-spacing:.02em;margin-bottom:1.2rem}
+    .hof-title span{color:var(--accent2)}
+    .hof-subtitle{font-size:1rem;color:var(--muted);max-width:560px;margin:0 auto 3rem;line-height:1.7;font-weight:300}
+
+    /* CATEGORY GRID */
+    .cat-section{max-width:1100px;margin:0 auto;padding:0 2rem 2rem}
+    .cat-section-title{font-family:'Space Mono',monospace;font-size:.65rem;letter-spacing:.25em;text-transform:uppercase;color:var(--muted);margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+    .cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1px;background:var(--border);margin-bottom:3rem}
+    .cat-tile{background:var(--surface);padding:1.2rem 1rem;display:flex;flex-direction:column;align-items:center;gap:.6rem;cursor:pointer;transition:background .15s,transform .1s;position:relative;border:none;color:inherit;text-align:center}
+    .cat-tile:hover{background:var(--surface2);transform:translateY(-2px)}
+    .cat-tile.loaded{border-bottom:2px solid var(--accent2)}
+    .cat-tile.loading-cat{border-bottom:2px solid var(--accent)}
+    .cat-icon{font-size:1.8rem;line-height:1}
+    .cat-name{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);line-height:1.4}
+    .cat-winner-preview{font-family:'Bebas Neue',sans-serif;font-size:.85rem;color:var(--accent2);letter-spacing:.03em;line-height:1.2;display:none}
+    .cat-tile.loaded .cat-winner-preview{display:block}
+    .cat-tile.loaded .cat-name{color:var(--text)}
+    .cat-score-mini{font-family:'Space Mono',monospace;font-size:.55rem;color:var(--green);display:none}
+    .cat-tile.loaded .cat-score-mini{display:block}
+    .cat-loading-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:dotpulse .8s ease-in-out infinite;display:none}
+    .cat-tile.loading-cat .cat-loading-dot{display:block}
+    @keyframes dotpulse{0%,100%{opacity:.2}50%{opacity:1}}
+
+    /* WINNER MODAL / EXPANDED CARD */
+    #winner-panel{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.9);overflow-y:auto;padding:2rem 1rem}
+    #winner-panel.open{display:flex;align-items:flex-start;justify-content:center}
+    .wp-inner{max-width:820px;width:100%;animation:slideUp .35s ease forwards}
+    @keyframes slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+
+    .wp-close{position:fixed;top:1.5rem;right:1.5rem;background:var(--surface);border:1px solid var(--border);color:var(--muted);font-size:1.2rem;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;border-radius:2px;transition:all .15s;z-index:201}
+    .wp-close:hover{border-color:var(--accent);color:var(--accent)}
+
+    /* WINNER CARD */
+    .wc-crown{background:linear-gradient(135deg,#1a1500,#0a0a0a);border:1px solid rgba(255,204,0,.3);padding:2rem;margin-bottom:1px;display:flex;align-items:center;gap:1.5rem;flex-wrap:wrap}
+    .wc-crown-icon{font-size:3rem;line-height:1}
+    .wc-crown-text{}
+    .wc-award{font-family:'Space Mono',monospace;font-size:.65rem;letter-spacing:.2em;text-transform:uppercase;color:var(--accent2);margin-bottom:.4rem}
+    .wc-cat{font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);margin-bottom:.3rem}
+    .wc-name{font-family:'Bebas Neue',sans-serif;font-size:clamp(2rem,5vw,3.2rem);line-height:.95;letter-spacing:.03em;color:var(--accent2)}
+    .wc-tagline{font-size:.9rem;color:#999;font-weight:300;margin-top:.5rem;line-height:1.5}
+    .wc-price{font-family:'Space Mono',monospace;font-size:1rem;font-weight:700;color:var(--green);margin-left:auto;text-align:right}
+    .wc-price-tier{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-top:.3rem}
+
+    /* MAIN LAYOUT */
+    .wc-body{display:grid;grid-template-columns:1fr 280px;gap:1px;background:var(--border);margin-bottom:1px}
+    .wc-left{background:var(--surface);padding:1.8rem}
+    .wc-right{background:var(--surface2);padding:1.5rem;display:flex;flex-direction:column;gap:1.5rem}
+
+    .wc-img-wrap{width:100%;max-width:260px;height:260px;background:#0d0d0d;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;margin:0 auto 1.5rem;position:relative}
+    .wc-img-wrap img{width:100%;height:100%;object-fit:contain;padding:16px;display:none}
+    .wc-spinner{width:32px;height:32px;border:2px solid var(--border);border-top-color:var(--accent2);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+
+    .wc-why{border-left:3px solid var(--accent2);padding:1rem 1.2rem;background:rgba(255,204,0,.04);margin-bottom:1.5rem;font-size:.9rem;line-height:1.7;color:#ccc;font-weight:300}
+
+    .wc-section-title{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);margin-bottom:.8rem}
+
+    /* SCORES */
+    .score-grid{display:flex;flex-direction:column;gap:.6rem;margin-bottom:1.5rem}
+    .score-item{display:grid;grid-template-columns:100px 1fr 32px;align-items:center;gap:.75rem}
+    .score-item-label{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+    .score-track{height:4px;background:var(--border);border-radius:2px;overflow:hidden}
+    .score-fill{height:100%;border-radius:2px;transition:width 1s ease}
+    .score-val{font-family:'Bebas Neue',sans-serif;font-size:.9rem;color:var(--text);text-align:right}
+
+    /* SPECS */
+    .spec-wrap{display:flex;flex-wrap:wrap;gap:.4rem;margin-bottom:1.5rem}
+    .spec-tag{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.08em;border:1px solid var(--border2);color:var(--muted);padding:.25rem .65rem;border-radius:2px}
+
+    /* PROS CONS */
+    .pros-cons{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem}
+    .pc-col .pc-title{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;margin-bottom:.6rem}
+    .pc-col.pros .pc-title{color:var(--green)}
+    .pc-col.cons .pc-title{color:var(--accent)}
+    .pc-list{list-style:none;display:flex;flex-direction:column;gap:.4rem}
+    .pc-list li{font-size:.82rem;color:#bbb;font-weight:300;padding-left:1.2rem;position:relative;line-height:1.4}
+    .pc-col.pros .pc-list li::before{content:'+';position:absolute;left:0;color:var(--green);font-weight:700}
+    .pc-col.cons .pc-list li::before{content:'−';position:absolute;left:0;color:var(--accent);font-weight:700}
+
+    /* PLATFORM REVIEWS */
+    .platform-reviews{display:flex;flex-direction:column;gap:.6rem}
+    .pr-item{background:var(--bg);border:1px solid var(--border);padding:.9rem 1rem;border-radius:2px}
+    .pr-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.4rem}
+    .pr-platform{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--text)}
+    .pr-rating{font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:.05em}
+    .pr-rating.positive{color:var(--green)}
+    .pr-rating.mixed{color:var(--accent2)}
+    .pr-rating.negative{color:var(--accent)}
+    .pr-quote{font-size:.8rem;color:#999;font-style:italic;line-height:1.5}
+    .pr-verdict-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;display:inline-block;margin-right:.4rem}
+    .pr-verdict-dot.positive{background:var(--green)}
+    .pr-verdict-dot.mixed{background:var(--accent2)}
+    .pr-verdict-dot.negative{background:var(--accent)}
+
+    /* RIGHT SIDEBAR */
+    .overall-score-big{text-align:center;padding:1.2rem;background:var(--bg);border:1px solid var(--border);border-radius:2px}
+    .osb-num{font-family:'Bebas Neue',sans-serif;font-size:4rem;line-height:1;color:var(--accent2)}
+    .osb-label{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted)}
+    .osb-bar{height:4px;background:var(--border);border-radius:2px;overflow:hidden;margin:.6rem 0 .3rem}
+    .osb-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--green));border-radius:2px;transition:width 1s ease}
+
+    .best-not{display:flex;flex-direction:column;gap:.5rem}
+    .bn-item{background:var(--bg);border:1px solid var(--border);padding:.8rem 1rem;border-radius:2px}
+    .bn-label{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;margin-bottom:.3rem}
+    .bn-item.best .bn-label{color:var(--green)}
+    .bn-item.not  .bn-label{color:var(--accent)}
+    .bn-text{font-size:.82rem;color:#bbb;font-weight:300;line-height:1.4}
+
+    .runner-up-box{background:var(--bg);border:1px solid var(--border);padding:1rem;border-radius:2px}
+    .rub-label{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.4rem}
+    .rub-name{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#888;letter-spacing:.04em;margin-bottom:.3rem}
+    .rub-reason{font-size:.78rem;color:var(--muted);font-weight:300;line-height:1.4}
+
+    .buy-now-btn{display:block;background:var(--accent);color:#fff;text-decoration:none;text-align:center;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;padding:1rem;border-radius:2px;transition:background .15s;margin-top:.5rem}
+    .buy-now-btn:hover{background:#e03300}
+
+    /* LOADING PANEL */
+    .panel-loading{background:var(--surface);padding:4rem 2rem;text-align:center;border:1px solid var(--border)}
+    .panel-loader-text{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;animation:pulse 1.4s ease-in-out infinite;margin-bottom:1rem}
+    @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+    .panel-bar{width:200px;height:2px;background:var(--border);margin:0 auto;position:relative;overflow:hidden}
+    .panel-bar::after{content:'';position:absolute;height:100%;width:60%;background:var(--accent2);animation:slide 1.2s ease-in-out infinite}
+    @keyframes slide{0%{left:-60%}100%{left:120%}}
+
+    footer{border-top:1px solid var(--border);padding:1.5rem 2rem;text-align:center;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;margin-top:4rem}
+
+    @media(max-width:680px){
+      .wc-body{grid-template-columns:1fr}
+      .pros-cons{grid-template-columns:1fr}
+      .score-item{grid-template-columns:80px 1fr 28px}
+      .cat-grid{grid-template-columns:repeat(auto-fill,minmax(120px,1fr))}
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <a class="nav-logo" href="/">COUNTER<span>PICK</span></a>
+  <span class="nav-badge">🏆 Hall of Fame</span>
+  <a class="nav-back" href="/">← Back to App</a>
+</nav>
+
+<!-- HERO -->
+<div class="hof-hero">
+  <div class="hof-eyebrow">Counterpick — Hall of Fame</div>
+  <h1 class="hof-title">The <span>#1 Winner</span><br>in Every Category</h1>
+  <p class="hof-subtitle">Cross-platform consensus rankings backed by Amazon ratings, Reddit discussions, Wirecutter, The Verge, YouTube reviews, and real consumer data. Click any category to reveal the undisputed champion.</p>
+</div>
+
+<!-- CATEGORIES -->
+<div class="cat-section">
+  <div class="cat-section-title">📱 Electronics & Tech</div>
+  <div class="cat-grid" id="grid-tech"></div>
+
+  <div class="cat-section-title">🏠 Home & Kitchen</div>
+  <div class="cat-grid" id="grid-home"></div>
+
+  <div class="cat-section-title">🎮 Gaming</div>
+  <div class="cat-grid" id="grid-gaming"></div>
+
+  <div class="cat-section-title">💪 Health & Fitness</div>
+  <div class="cat-grid" id="grid-fitness"></div>
+
+  <div class="cat-section-title">👗 Personal Care & Style</div>
+  <div class="cat-grid" id="grid-personal"></div>
+
+  <div class="cat-section-title">🌿 Sustainability & Eco</div>
+  <div class="cat-grid" id="grid-eco"></div>
+</div>
+
+<!-- WINNER PANEL -->
+<div id="winner-panel">
+  <div class="wp-inner" id="wp-inner"></div>
+  <button class="wp-close" onclick="closePanel()">✕</button>
+</div>
+
+<footer>Counterpick Hall of Fame — AI-powered cross-platform product intelligence &nbsp;·&nbsp; Always verify before buying</footer>
+
+<script>
+const CATEGORIES = {
+  'grid-tech': [
+    {icon:'🎧', name:'Wireless Headphones'},
+    {icon:'📱', name:'Android Smartphones'},
+    {icon:'💻', name:'Ultrabook Laptops'},
+    {icon:'⌚', name:'Smartwatches'},
+    {icon:'📷', name:'Mirrorless Cameras'},
+    {icon:'🖥', name:'Gaming Monitors'},
+    {icon:'🔊', name:'Bluetooth Speakers'},
+    {icon:'📺', name:'4K TVs'},
+    {icon:'🖱', name:'Wireless Mouse'},
+    {icon:'⌨', name:'Mechanical Keyboards'},
+    {icon:'🎙', name:'USB Microphones'},
+    {icon:'📡', name:'WiFi Routers'},
+  ],
+  'grid-home': [
+    {icon:'🤖', name:'Robot Vacuums'},
+    {icon:'☕', name:'Espresso Machines'},
+    {icon:'🍳', name:'Air Fryers'},
+    {icon:'🌀', name:'Cordless Vacuums'},
+    {icon:'💨', name:'Air Purifiers'},
+    {icon:'🧊', name:'Smart Refrigerators'},
+    {icon:'🫧', name:'Dishwashers'},
+    {icon:'🛏', name:'Mattresses'},
+    {icon:'💡', name:'Smart Home Hubs'},
+    {icon:'🔧', name:'Instant Pot / Pressure Cookers'},
+    {icon:'🧺', name:'Washing Machines'},
+    {icon:'🌡', name:'Smart Thermostats'},
+  ],
+  'grid-gaming': [
+    {icon:'🎮', name:'Gaming Headsets'},
+    {icon:'🕹', name:'Handheld Game Consoles'},
+    {icon:'🖱', name:'Gaming Mice'},
+    {icon:'🎯', name:'Gaming Chairs'},
+    {icon:'💺', name:'Racing Sim Wheels'},
+    {icon:'🃏', name:'Gaming Keyboards'},
+    {icon:'📺', name:'Gaming TVs'},
+    {icon:'🔵', name:'PS5 Controllers'},
+    {icon:'🟩', name:'Xbox Controllers'},
+    {icon:'🎲', name:'Board Game (Strategy)'},
+  ],
+  'grid-fitness': [
+    {icon:'🏃', name:'Running Shoes'},
+    {icon:'🚴', name:'Exercise Bikes'},
+    {icon:'🏋', name:'Adjustable Dumbbells'},
+    {icon:'❤️', name:'Fitness Trackers'},
+    {icon:'🧘', name:'Yoga Mats'},
+    {icon:'🥤', name:'Protein Supplements'},
+    {icon:'💪', name:'Resistance Bands'},
+    {icon:'⚡', name:'EMS Massage Guns'},
+    {icon:'🏊', name:'Swimming Goggles'},
+    {icon:'🎽', name:'Gym Bags'},
+  ],
+  'grid-personal': [
+    {icon:'🪥', name:'Electric Toothbrushes'},
+    {icon:'✂', name:'Hair Clippers'},
+    {icon:'💈', name:'Hair Dryers'},
+    {icon:'🪒', name:'Electric Shavers'},
+    {icon:'🧴', name:'Sunscreens'},
+    {icon:'👟', name:'Everyday Sneakers'},
+    {icon:'🎒', name:'Backpacks'},
+    {icon:'💼', name:'Carry-On Luggage'},
+    {icon:'🕶', name:'Sunglasses'},
+    {icon:'⌚', name:'Luxury Watches'},
+  ],
+  'grid-eco': [
+    {icon:'🌱', name:'Reusable Water Bottles'},
+    {icon:'☀', name:'Portable Solar Chargers'},
+    {icon:'🔋', name:'Power Banks'},
+    {icon:'🚲', name:'Electric Bikes'},
+    {icon:'🌿', name:'Eco-Friendly Cleaning Products'},
+    {icon:'♻', name:'Compost Bins'},
+    {icon:'💧', name:'Water Filters'},
+    {icon:'🍃', name:'Bamboo Products'},
+  ]
+};
+
+// Cache for loaded winners
+const winnerCache = {};
+
+function buildCategoryGrids() {
+  Object.entries(CATEGORIES).forEach(([gridId, cats]) => {
+    const grid = document.getElementById(gridId);
+    cats.forEach(cat => {
+      const tile = document.createElement('button');
+      tile.className = 'cat-tile';
+      tile.dataset.category = cat.name;
+      tile.innerHTML = `
+        <div class="cat-icon">${cat.icon}</div>
+        <div class="cat-name">${cat.name}</div>
+        <div class="cat-winner-preview" id="prev-${slugify(cat.name)}"></div>
+        <div class="cat-score-mini" id="score-${slugify(cat.name)}"></div>
+        <div class="cat-loading-dot"></div>
+      `;
+      tile.addEventListener('click', () => loadWinner(cat.name, tile));
+      grid.appendChild(tile);
+    });
+  });
+}
+
+function slugify(s) { return s.toLowerCase().replace(/[^a-z0-9]/g,'_'); }
+
+async function loadWinner(category, tileEl) {
+  // If cached, show directly
+  if (winnerCache[category]) {
+    showPanel(winnerCache[category], category);
+    return;
+  }
+
+  tileEl.classList.add('loading-cat');
+  showPanelLoading(category);
+
+  try {
+    const res = await fetch('/api/halloffame', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({category})
+    });
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    winnerCache[category] = data;
+
+    // Update tile with preview
+    tileEl.classList.remove('loading-cat');
+    tileEl.classList.add('loaded');
+    const slug = slugify(category);
+    const prev = document.getElementById('prev-' + slug);
+    const scoreEl = document.getElementById('score-' + slug);
+    if (prev) prev.textContent = data.winner?.name || '';
+    if (scoreEl) scoreEl.textContent = (data.winner?.overall_score || 0) + '/100';
+
+    showPanel(data, category);
+  } catch(e) {
+    tileEl.classList.remove('loading-cat');
+    closePanel();
+    alert('Failed to load: ' + (e.message||'Try again'));
+  }
+}
+
+function showPanelLoading(category) {
+  const panel = document.getElementById('winner-panel');
+  document.getElementById('wp-inner').innerHTML = `
+    <div class="panel-loading">
+      <div class="panel-loader-text">Finding the #1 winner in ${category}…</div>
+      <div class="panel-bar"></div>
+    </div>`;
+  panel.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function showPanel(data, category) {
+  const w = data.winner || {};
+  const scores = w.scores || {};
+  const scoreColors = {
+    value: '#00e87a',
+    performance: '#38bdf8',
+    build_quality: '#a78bfa',
+    features: '#ffcc00',
+    user_satisfaction: '#f472b6'
+  };
+  const scoreLabels = {
+    value: 'Value',
+    performance: 'Performance',
+    build_quality: 'Build Quality',
+    features: 'Features',
+    user_satisfaction: 'Satisfaction'
+  };
+
+  const scoresHtml = Object.entries(scoreLabels).map(([key, label]) => {
+    const val = scores[key] || 0;
+    return `<div class="score-item">
+      <div class="score-item-label">${label}</div>
+      <div class="score-track"><div class="score-fill" style="width:${val*10}%;background:${scoreColors[key]}"></div></div>
+      <div class="score-val">${val}</div>
+    </div>`;
+  }).join('');
+
+  const platformHtml = (w.platform_reviews || []).map(r => `
+    <div class="pr-item">
+      <div class="pr-header">
+        <div class="pr-platform"><span class="pr-verdict-dot ${r.verdict||'positive'}"></span>${r.platform}</div>
+        <div class="pr-rating ${r.verdict||'positive'}">${r.rating||''}</div>
+      </div>
+      <div class="pr-quote">"${r.quote||''}"</div>
+    </div>`).join('');
+
+  const specsHtml = (w.key_specs||[]).map(s => `<span class="spec-tag">${s}</span>`).join('');
+  const prosHtml  = (w.pros||[]).map(p => `<li>${p}</li>`).join('');
+  const consHtml  = (w.cons||[]).map(c => `<li>${c}</li>`).join('');
+  const tierClass = (w.price_tier||'mid-range').replace(/\s+/g,'-').toLowerCase();
+
+  document.getElementById('wp-inner').innerHTML = `
+    <div class="wc-crown">
+      <div class="wc-crown-icon">🏆</div>
+      <div class="wc-crown-text">
+        <div class="wc-award">${w.award_label || '🏆 Category Champion'}</div>
+        <div class="wc-cat">${data.category || category}</div>
+        <div class="wc-name">${w.name || '—'}</div>
+        <div class="wc-tagline">${w.tagline || ''}</div>
+      </div>
+      <div class="wc-price">
+        <div>${w.price_estimate || '—'}</div>
+        <div class="wc-price-tier">${w.price_tier || ''}</div>
+      </div>
+    </div>
+
+    <div class="wc-body">
+      <div class="wc-left">
+        <div class="wc-img-wrap" id="wp-img-wrap">
+          <div class="wc-spinner" id="wp-spinner"></div>
+          <img id="wp-img" alt="${w.product_search||w.name||''}"/>
+        </div>
+
+        <div class="wc-section-title">Why it wins</div>
+        <div class="wc-why">${w.why_it_wins || ''}</div>
+
+        <div class="wc-section-title">Performance scores</div>
+        <div class="score-grid">${scoresHtml}</div>
+
+        <div class="wc-section-title">Key specs</div>
+        <div class="spec-wrap">${specsHtml}</div>
+
+        <div class="wc-section-title">Pros & Cons</div>
+        <div class="pros-cons">
+          <div class="pc-col pros"><div class="pc-title">Pros</div><ul class="pc-list">${prosHtml}</ul></div>
+          <div class="pc-col cons"><div class="pc-title">Cons</div><ul class="pc-list">${consHtml}</ul></div>
+        </div>
+
+        <div class="wc-section-title">What platforms say</div>
+        <div class="platform-reviews">${platformHtml}</div>
+      </div>
+
+      <div class="wc-right">
+        <div class="overall-score-big">
+          <div class="osb-num">${w.overall_score || 0}</div>
+          <div class="osb-bar"><div class="osb-fill" style="width:${w.overall_score||0}%"></div></div>
+          <div class="osb-label">Overall Score / 100</div>
+        </div>
+
+        <div>
+          <div class="wc-section-title">Who is it for?</div>
+          <div class="best-not">
+            <div class="bn-item best"><div class="bn-label">✓ Best for</div><div class="bn-text">${w.best_for||'—'}</div></div>
+            <div class="bn-item not"><div class="bn-label">✗ Not for</div><div class="bn-text">${w.not_for||'—'}</div></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="wc-section-title">Runner-up</div>
+          <div class="runner-up-box">
+            <div class="rub-label">🥈 Close second</div>
+            <div class="rub-name">${w.runner_up || '—'}</div>
+            <div class="rub-reason">${w.runner_up_reason || ''}</div>
+          </div>
+        </div>
+
+        <a class="buy-now-btn" href="${w.buy_url||'#'}" target="_blank" rel="noopener">Buy on Amazon →</a>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('winner-panel').classList.add('open');
+  document.body.style.overflow = 'hidden';
+
+  // Load image
+  const imgEl = document.getElementById('wp-img');
+  const spinnerEl = document.getElementById('wp-spinner');
+  loadImage(w.product_search || w.name || '', imgEl, spinnerEl, 400);
+}
+
+// ── IMAGE FETCHING ─────────────────────────────────────────────────────────
+const CORS_PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithProxy(url, proxyIndex = 0) {
+  if (proxyIndex >= CORS_PROXIES.length) return null;
+  try {
+    const proxied = CORS_PROXIES[proxyIndex](url);
+    const res = await fetch(proxied, { signal: AbortSignal.timeout(7000) });
+    if (!res.ok) return fetchWithProxy(url, proxyIndex + 1);
+    const text = await res.text();
+    try { const j = JSON.parse(text); return j.contents || text; } catch { return text; }
+  } catch { return fetchWithProxy(url, proxyIndex + 1); }
+}
+
+async function getProductImageUrl(query) {
+  if (!query) return null;
+  const q = encodeURIComponent(query);
+
+  // 1: DuckDuckGo 2-step
+  try {
+    const html = await fetchWithProxy('https://duckduckgo.com/?q=' + q + '&ia=images&iax=images');
+    if (html) {
+      const vqdM = html.match(/vqd=["']?([0-9-]+)["']?/);
+      if (vqdM) {
+        const jsonText = await fetchWithProxy(
+          'https://duckduckgo.com/i.js?q=' + q + '&vqd=' + vqdM[1] + '&o=json&p=1&s=0&u=bing&f=,,,&l=us-en'
+        );
+        if (jsonText) {
+          const data = JSON.parse(jsonText);
+          for (const r of (data.results || []).slice(0, 8)) {
+            const img = r.image || r.thumbnail || '';
+            if (img && !/logo|icon|sprite|\.svg|\.gif/i.test(img)) return img;
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // 2: Bing Images
+  try {
+    const html = await fetchWithProxy('https://www.bing.com/images/search?q=' + q + '&first=1');
+    if (html) {
+      const m = html.match(/murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/)
+             || html.match(/"murl":"(https?:\/\/[^"]+?)"/);
+      if (m && !/logo|icon|\.svg|\.gif/i.test(m[1])) return m[1];
+    }
+  } catch {}
+
+  // 3: Google Images
+  try {
+    const html = await fetchWithProxy('https://www.google.com/search?q=' + q + '+product&tbm=isch');
+    if (html) {
+      const matches = [...html.matchAll(/"ou":"(https?:\/\/[^"]+?)"/g)];
+      for (const m of matches.slice(0, 5)) {
+        if (!/logo|icon|\.svg|\.gif/i.test(m[1])) return decodeURIComponent(m[1]);
+      }
+    }
+  } catch {}
+
+  // 4: Amazon
+  try {
+    const html = await fetchWithProxy('https://www.amazon.com/s?k=' + q);
+    if (html) {
+      const m = html.match(/src="(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+?\.jpg)"/);
+      if (m) return m[1];
+    }
+  } catch {}
+
+  return null;
+}
+
+function tryLoad(imgEl, src) {
+  return new Promise(res => {
+    const t = setTimeout(() => res(false), 8000);
+    imgEl.onload  = () => { clearTimeout(t); res(true); };
+    imgEl.onerror = () => { clearTimeout(t); res(false); };
+    imgEl.src = src;
+  });
+}
+
+async function loadImage(query, imgEl, placeholderEl, size) {
+  size = size || 300;
+  try {
+    const url = await getProductImageUrl(query);
+    if (url) {
+      const proxied = 'https://images.weserv.nl/?url=' + encodeURIComponent(url) + '&w=' + size + '&h=' + size + '&fit=contain&bg=0d0d0d&output=webp';
+      if (await tryLoad(imgEl, proxied) || await tryLoad(imgEl, url)) {
+        if (placeholderEl) placeholderEl.style.display = 'none';
+        imgEl.style.display = 'block';
+        return;
+      }
+    }
+  } catch {}
+  // Styled fallback
+  const initial = (query || '?').trim()[0].toUpperCase();
+  const shortName = (query || '').trim().slice(0, 22).toUpperCase();
+  if (placeholderEl) {
+    placeholderEl.innerHTML = '<div style="text-align:center;padding:1rem"><div style="font-family:Bebas Neue,sans-serif;font-size:3rem;color:#ff3b00;opacity:.7;line-height:1">' + initial + '</div><div style="font-family:Space Mono,monospace;font-size:.5rem;color:#555;letter-spacing:.1em;margin-top:.5rem;text-transform:uppercase;line-height:1.4">' + shortName + '</div></div>';
+  }
+}
+// ── END IMAGE FETCHING ─────────────────────────────────────────────────────
+
+function closePanel() {
+  document.getElementById('winner-panel').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+document.getElementById('winner-panel').addEventListener('click', e => {
+  if (e.target === document.getElementById('winner-panel')) closePanel();
+});
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closePanel(); });
+
+buildCategoryGrids();
+</script>
+</body>
+</html>
