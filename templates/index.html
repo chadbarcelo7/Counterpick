@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>COUNTERPICK</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    :root{
+      --bg:#0a0a0a;--surface:#111;--surface2:#161616;--border:#1e1e1e;
+      --accent:#ff3b00;--accent2:#ffcc00;--text:#f0ede6;--muted:#555;
+      --green:#00e87a;--blue:#38bdf8;--purple:#a78bfa;
+    }
+    html{scroll-behavior:smooth}
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+    body::before{content:'';position:fixed;inset:0;background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");pointer-events:none;z-index:1000;opacity:.4}
+
+    /* HEADER */
+    header{border-bottom:1px solid var(--border);padding:1.2rem 2rem;display:flex;align-items:center;gap:1rem;position:sticky;top:0;background:rgba(10,10,10,.95);backdrop-filter:blur(12px);z-index:100}
+    .logo{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;letter-spacing:.1em}
+    .logo span{color:var(--accent)}
+    .tagline{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase;border-left:1px solid var(--border);padding-left:1rem}
+
+    /* MODE TABS */
+    .mode-tabs{display:flex;gap:0;margin-left:auto;border:1px solid var(--border);border-radius:2px;overflow:hidden}
+    .mode-tab{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;padding:.5rem 1.1rem;cursor:pointer;background:transparent;border:none;color:var(--muted);transition:background .15s,color .15s}
+    .mode-tab.active{background:var(--accent);color:#fff}
+    .mode-tab:hover:not(.active){background:var(--surface2);color:var(--text)}
+
+    /* HERO */
+    .hero{padding:4rem 2rem 2.5rem;max-width:900px;margin:0 auto;text-align:center}
+    .hero-eyebrow{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.3em;color:var(--accent);text-transform:uppercase;margin-bottom:1rem}
+    .hero h1{font-family:'Bebas Neue',sans-serif;font-size:clamp(3rem,9vw,6.5rem);line-height:.92;letter-spacing:.02em;margin-bottom:1.2rem}
+    .hero h1 em{color:var(--accent);font-style:normal}
+    .hero p{font-size:1rem;color:var(--muted);max-width:480px;margin:0 auto 2.5rem;line-height:1.6;font-weight:300}
+
+    /* TIER PICKER */
+    .tier-picker{display:flex;justify-content:center;gap:.5rem;flex-wrap:wrap;margin-bottom:1.5rem}
+    .tier-btn{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--muted);padding:.45rem 1rem;border-radius:2px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.4rem}
+    .tier-btn:hover{color:var(--text);border-color:var(--text)}
+    .tier-btn.active{border-color:var(--accent2);background:rgba(255,204,0,.08);color:var(--accent2)}
+    .tier-btn .tier-icon{font-size:.9rem}
+
+    /* SEARCH */
+    .search-wrap{display:flex;max-width:580px;margin:0 auto;border:1px solid var(--border);border-radius:2px;overflow:hidden;transition:border-color .2s}
+    .search-wrap:focus-within{border-color:var(--accent)}
+    #product-input,#battle-input-a,#battle-input-b{flex:1;background:var(--surface);border:none;outline:none;padding:1.1rem 1.4rem;font-family:'DM Sans',sans-serif;font-size:1rem;color:var(--text)}
+    #product-input::placeholder,#battle-input-a::placeholder,#battle-input-b::placeholder{color:var(--muted)}
+    .search-btn{background:var(--accent);color:#fff;border:none;padding:1.1rem 1.8rem;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;cursor:pointer;transition:background .15s,transform .1s;white-space:nowrap}
+    .search-btn:hover{background:#e03300}
+    .search-btn:active{transform:scale(.97)}
+    .search-btn:disabled{background:#333;cursor:not-allowed}
+
+    /* BATTLE INPUT */
+    .battle-wrap{max-width:680px;margin:0 auto;display:grid;grid-template-columns:1fr auto 1fr;gap:.75rem;align-items:center}
+    .battle-vs-sep{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--accent2);text-align:center}
+    .battle-input-box{display:flex;border:1px solid var(--border);border-radius:2px;overflow:hidden;transition:border-color .2s}
+    .battle-input-box:focus-within{border-color:var(--accent)}
+    .battle-go{background:var(--accent);color:#fff;border:none;padding:1.1rem 2rem;font-family:'Bebas Neue',sans-serif;font-size:1.1rem;letter-spacing:.1em;cursor:pointer;transition:background .15s;white-space:nowrap;margin-top:.75rem;width:100%;border-radius:2px}
+    .battle-go:hover{background:#e03300}
+    .battle-go:disabled{background:#333;cursor:not-allowed}
+
+    .examples{display:flex;justify-content:center;gap:.5rem;margin-top:1rem;flex-wrap:wrap}
+    .example-tag{font-family:'Space Mono',monospace;font-size:.6rem;color:var(--muted);border:1px solid var(--border);padding:.3rem .7rem;border-radius:2px;cursor:pointer;transition:color .15s,border-color .15s;letter-spacing:.05em}
+    .example-tag:hover{color:var(--accent2);border-color:var(--accent2)}
+
+    /* VIEWS */
+    .view{display:none}
+    .view.active{display:block}
+
+    /* LOADING */
+    #loading{display:none;text-align:center;padding:4rem 2rem}
+    .loader-text{font-family:'Space Mono',monospace;font-size:.7rem;letter-spacing:.3em;color:var(--muted);text-transform:uppercase;animation:pulse 1.4s ease-in-out infinite}
+    @keyframes pulse{0%,100%{opacity:.3}50%{opacity:1}}
+    .loader-bar{width:180px;height:2px;background:var(--border);margin:1rem auto 0;position:relative;overflow:hidden}
+    .loader-bar::after{content:'';position:absolute;height:100%;width:60%;background:var(--accent);animation:slide 1.2s ease-in-out infinite}
+    @keyframes slide{0%{left:-60%}100%{left:120%}}
+
+    /* RESULT */
+    #result,#battle-result{display:none;max-width:900px;margin:0 auto;padding:2rem 2rem 5rem;animation:fadeUp .5s ease forwards}
+    @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+    /* SHARE + REGION BAR */
+    .result-toolbar{display:flex;align-items:center;gap:.75rem;margin-bottom:.75rem;flex-wrap:wrap}
+    .category-pill{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:#000;background:var(--accent2);padding:.25rem .8rem;border-radius:2px}
+    .priority-pill{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;color:#000;background:var(--green);padding:.25rem .8rem;border-radius:2px}
+    .region-select{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;background:var(--surface);border:1px solid var(--border);color:var(--text);padding:.3rem .7rem;border-radius:2px;cursor:pointer;outline:none;margin-left:auto}
+    .share-btn{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;background:transparent;border:1px solid var(--border);color:var(--muted);padding:.3rem .9rem;border-radius:2px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.4rem}
+    .share-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+
+    /* VS ARENA */
+    .vs-arena{display:grid;grid-template-columns:1fr 70px 1fr;align-items:stretch;background:var(--border);gap:1px;border:1px solid var(--border);margin-bottom:1px}
+    .product-card{background:var(--surface);display:flex;flex-direction:column;align-items:center;padding:2rem 1.5rem 1.5rem;gap:1rem}
+    .product-card.pick{background:var(--surface2)}
+    .p-label{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.3em;text-transform:uppercase;color:var(--muted)}
+    .product-card.pick .p-label{color:var(--accent)}
+    .product-img-wrap{width:170px;height:170px;background:#0d0d0d;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative}
+    .product-img-wrap img{width:100%;height:100%;object-fit:contain;padding:10px;transition:transform .3s ease;display:none}
+    .product-img-wrap:hover img{transform:scale(1.06)}
+    .img-placeholder{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.5rem}
+    .spinner{width:26px;height:26px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .ph-label{font-family:'Space Mono',monospace;font-size:.5rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+    .p-name{font-family:'Bebas Neue',sans-serif;font-size:1.45rem;letter-spacing:.04em;text-align:center;line-height:1.1;color:#777}
+    .product-card.pick .p-name{color:var(--accent)}
+    .p-price-tag{font-family:'Space Mono',monospace;font-size:.9rem;font-weight:700;color:var(--text);background:var(--border);padding:.3rem 1rem}
+    .product-card.pick .p-price-tag{background:var(--accent);color:#fff}
+    .vs-col{background:var(--bg);display:flex;align-items:center;justify-content:center}
+    .vs-text{font-family:'Bebas Neue',sans-serif;font-size:2.5rem;color:var(--accent2);writing-mode:vertical-rl;letter-spacing:.1em}
+
+    /* REASON */
+    .reason-box{border-left:3px solid var(--accent);background:var(--surface);padding:1.3rem 1.5rem;margin-bottom:1px;font-size:.95rem;line-height:1.65;font-weight:300;color:#ccc}
+
+    /* CARDS */
+    .cards-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:1px}
+    .card{background:var(--surface);padding:1.5rem}
+    .card-label{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.25em;color:var(--muted);text-transform:uppercase;margin-bottom:.9rem}
+    .card ul{list-style:none;display:flex;flex-direction:column;gap:.6rem}
+    .card ul li{padding-left:1.4rem;position:relative;font-size:.88rem;line-height:1.5;color:#bbb;font-weight:300}
+    .card ul li::before{content:'→';position:absolute;left:0;color:var(--accent)}
+    .card.drawbacks ul li::before{content:'↳';color:var(--muted)}
+
+    /* STATS */
+    .stats-row{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:1px}
+    .stat-cell{background:var(--surface);padding:1.2rem 1.5rem}
+    .stat-label{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:.5rem}
+    .price-badge{display:inline-block;font-family:'Bebas Neue',sans-serif;font-size:1rem;letter-spacing:.1em;padding:.2rem .7rem}
+    .price-badge.cheaper{background:var(--green);color:#000}
+    .price-badge.similar{background:var(--accent2);color:#000}
+    .price-badge.more-expensive{background:var(--border);color:var(--text)}
+
+    /* BUY */
+    .buy-section{background:var(--surface);padding:1.5rem;border:1px solid var(--border);border-top:none;margin-bottom:1px}
+    .buy-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:.75rem;margin-top:.9rem}
+    .buy-card{border:1px solid var(--border);background:var(--bg);padding:1rem 1.2rem;display:flex;flex-direction:column;gap:.4rem;text-decoration:none;transition:border-color .15s,transform .15s}
+    .buy-card:hover{border-color:var(--accent);transform:translateY(-2px)}
+    .buy-store{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+    .buy-price{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--green);letter-spacing:.05em}
+    .buy-cta{font-family:'Space Mono',monospace;font-size:.58rem;color:var(--accent);letter-spacing:.1em;text-transform:uppercase}
+
+    /* REDDIT PULSE */
+    .reddit-section{background:var(--surface);border:1px solid var(--border);border-top:none;padding:1.5rem;margin-bottom:1px}
+    .reddit-header{display:flex;align-items:center;gap:1rem;margin-bottom:1.2rem;flex-wrap:wrap}
+    .reddit-logo{font-family:'Bebas Neue',sans-serif;font-size:1rem;color:#ff4500;letter-spacing:.1em}
+    .sentiment-bar-wrap{flex:1;min-width:200px}
+    .sentiment-bar-bg{height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:.3rem}
+    .sentiment-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2),var(--green));border-radius:3px;transition:width .8s ease}
+    .sentiment-score{font-family:'Bebas Neue',sans-serif;font-size:1.6rem;color:var(--accent2);margin-left:auto}
+    .reddit-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-bottom:1rem}
+    .reddit-col{background:var(--surface2);padding:1.2rem}
+    .reddit-col .card-label{margin-bottom:.7rem}
+    .reddit-col ul{list-style:none;display:flex;flex-direction:column;gap:.5rem}
+    .reddit-col ul li{padding-left:1.2rem;position:relative;font-size:.85rem;color:#bbb;font-weight:300}
+    .reddit-col ul.loved li::before{content:'♥';position:absolute;left:0;color:var(--green);font-size:.75rem}
+    .reddit-col ul.criticized li::before{content:'✕';position:absolute;left:0;color:var(--accent);font-size:.75rem}
+    .top-insight{font-family:'Space Mono',monospace;font-size:.7rem;color:var(--accent2);border:1px solid rgba(255,204,0,.2);padding:.8rem 1rem;line-height:1.5;margin-bottom:.8rem;letter-spacing:.03em}
+    .reddit-quotes{display:flex;flex-direction:column;gap:.6rem}
+    .reddit-quote{background:var(--bg);border:1px solid var(--border);padding:.8rem 1rem;border-radius:2px}
+    .quote-text{font-size:.82rem;color:#ccc;line-height:1.5;font-style:italic;margin-bottom:.3rem}
+    .quote-meta{display:flex;align-items:center;gap:.5rem}
+    .quote-source{font-family:'Space Mono',monospace;font-size:.55rem;color:var(--muted)}
+    .quote-sentiment-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+    .quote-sentiment-dot.positive{background:var(--green)}
+    .quote-sentiment-dot.negative{background:var(--accent)}
+    .quote-sentiment-dot.neutral{background:var(--muted)}
+    .reddit-load-btn{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;background:transparent;border:1px solid var(--border);color:var(--muted);padding:.5rem 1.2rem;cursor:pointer;transition:all .15s;border-radius:2px;margin-top:.5rem}
+    .reddit-load-btn:hover{border-color:#ff4500;color:#ff4500}
+    .reddit-load-btn:disabled{opacity:.4;cursor:not-allowed}
+
+    /* ── BATTLE MODE ── */
+    .battle-scorecard{background:var(--surface);border:1px solid var(--border);padding:1.5rem;margin-bottom:1px}
+    .battle-header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:1rem;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid var(--border)}
+    .battle-product{text-align:center}
+    .battle-product .bp-label{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.2em;color:var(--muted);text-transform:uppercase;margin-bottom:.3rem}
+    .battle-product .bp-name{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.04em;line-height:1.1}
+    .battle-product .bp-price{font-family:'Space Mono',monospace;font-size:.8rem;color:var(--muted);margin-top:.3rem}
+    .battle-product.winner-a .bp-name{color:var(--accent2)}
+    .battle-product.winner-b .bp-name{color:var(--accent2)}
+    .battle-crown{font-size:1.5rem;text-align:center}
+    .winner-badge{display:inline-block;font-family:'Bebas Neue',sans-serif;font-size:1.3rem;letter-spacing:.08em;padding:.3rem 1.2rem;border-radius:2px;margin-top:.4rem}
+    .winner-badge.gold{background:var(--accent2);color:#000}
+    .winner-badge.tie{background:var(--muted);color:#fff}
+    .verdict-box{border-left:3px solid var(--accent2);background:var(--surface2);padding:1rem 1.2rem;margin-bottom:1.2rem;font-size:.9rem;line-height:1.6;font-weight:300;color:#ccc}
+    .score-row{display:grid;grid-template-columns:1fr 2fr 1fr;align-items:center;gap:.75rem;padding:.75rem 0;border-bottom:1px solid var(--border)}
+    .score-row:last-child{border-bottom:none}
+    .score-dim{font-family:'Space Mono',monospace;font-size:.58rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;text-align:center}
+    .score-bars{display:flex;align-items:center;gap:.5rem}
+    .score-bar-a,.score-bar-b{height:6px;border-radius:3px;transition:width .6s ease}
+    .score-bar-a{background:var(--blue);margin-left:auto}
+    .score-bar-b{background:var(--accent)}
+    .score-num{font-family:'Bebas Neue',sans-serif;font-size:1rem;min-width:20px;text-align:center}
+    .score-num.a{color:var(--blue)}
+    .score-num.b{color:var(--accent)}
+    .score-note{font-family:'Space Mono',monospace;font-size:.55rem;color:var(--muted);text-align:center;margin-top:.3rem;letter-spacing:.05em}
+    .score-winner-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+    .buy-verdict{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);margin-top:1rem}
+    .buy-verdict-cell{background:var(--surface2);padding:1rem 1.2rem}
+    .buy-verdict-cell .bv-label{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.15em;color:var(--muted);text-transform:uppercase;margin-bottom:.4rem}
+    .buy-verdict-cell .bv-text{font-size:.88rem;color:#ccc;font-weight:300;line-height:1.5}
+    .battle-buy-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:1rem}
+
+    /* ERROR */
+    #error-box{display:none;max-width:580px;margin:2rem auto;border:1px solid var(--accent);padding:1.2rem 1.5rem;color:var(--accent);font-family:'Space Mono',monospace;font-size:.78rem;text-align:center}
+
+    /* SHARE CARD OVERLAY */
+    #share-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;padding:2rem}
+    #share-overlay.open{display:flex}
+    .share-modal{background:var(--surface);border:1px solid var(--border);padding:2rem;max-width:500px;width:100%;border-radius:2px;text-align:center}
+    .share-modal h3{font-family:'Bebas Neue',sans-serif;font-size:1.5rem;letter-spacing:.05em;margin-bottom:1rem}
+    .share-modal p{font-family:'Space Mono',monospace;font-size:.65rem;color:var(--muted);letter-spacing:.1em;margin-bottom:1.5rem;line-height:1.6}
+    #share-preview{width:100%;border:1px solid var(--border);margin-bottom:1.2rem;border-radius:2px}
+    .share-actions{display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap}
+    .share-action-btn{font-family:'Space Mono',monospace;font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--border);background:transparent;color:var(--text);padding:.5rem 1.2rem;cursor:pointer;transition:all .15s;border-radius:2px}
+    .share-action-btn:hover{border-color:var(--accent2);color:var(--accent2)}
+    .share-action-btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+    .share-action-btn.primary:hover{background:#e03300}
+    .share-close{position:absolute;top:1rem;right:1rem;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer}
+
+    /* SHARE CARD TEMPLATE (hidden, used for screenshot) */
+    #share-card{position:fixed;left:-9999px;top:0;width:600px;background:#0a0a0a;padding:0;font-family:'DM Sans',sans-serif}
+    .sc-header{background:#111;padding:1rem 1.5rem;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1e1e1e}
+    .sc-logo{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;letter-spacing:.1em;color:#f0ede6}
+    .sc-logo span{color:#ff3b00}
+    .sc-cat{font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.2em;text-transform:uppercase;background:#ffcc00;color:#000;padding:.2rem .6rem}
+    .sc-arena{display:grid;grid-template-columns:1fr 60px 1fr;gap:0}
+    .sc-product{background:#111;padding:1.5rem;text-align:center;display:flex;flex-direction:column;align-items:center;gap:.75rem}
+    .sc-product.pick{background:#161616}
+    .sc-img{width:120px;height:120px;object-fit:contain;background:#0d0d0d;border:1px solid #1e1e1e;padding:8px}
+    .sc-name{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:.04em;color:#777;line-height:1.1}
+    .sc-product.pick .sc-name{color:#ff3b00}
+    .sc-price{font-family:'Space Mono',monospace;font-size:.8rem;background:#1e1e1e;color:#f0ede6;padding:.2rem .8rem}
+    .sc-product.pick .sc-price{background:#ff3b00;color:#fff}
+    .sc-vs{background:#0a0a0a;display:flex;align-items:center;justify-content:center}
+    .sc-vs-text{font-family:'Bebas Neue',sans-serif;font-size:2rem;color:#ffcc00;writing-mode:vertical-rl}
+    .sc-reason{background:#111;padding:1rem 1.5rem;font-size:.82rem;color:#ccc;line-height:1.6;border-left:3px solid #ff3b00;margin:1px 0}
+    .sc-footer{background:#111;padding:.75rem 1.5rem;font-family:'Space Mono',monospace;font-size:.5rem;color:#555;letter-spacing:.1em;text-transform:uppercase;display:flex;justify-content:space-between}
+
+    footer{border-top:1px solid var(--border);padding:1.5rem 2rem;text-align:center;font-family:'Space Mono',monospace;font-size:.58rem;color:var(--muted);letter-spacing:.15em;text-transform:uppercase}
+
+    @media(max-width:640px){
+      .vs-arena{grid-template-columns:1fr}
+      .vs-col{padding:.4rem}
+      .vs-text{writing-mode:horizontal-tb;font-size:2rem}
+      .cards-grid,.stats-row,.reddit-grid,.buy-verdict,.battle-buy-row{grid-template-columns:1fr}
+      .battle-wrap{grid-template-columns:1fr}
+      .battle-vs-sep{display:none}
+    }
+  </style>
+</head>
+<body>
+
+<!-- SHARE CARD (hidden, for screenshot) -->
+<div id="share-card">
+  <div class="sc-header">
+    <div class="sc-logo">COUNTER<span>PICK</span></div>
+    <div class="sc-cat" id="sc-cat">—</div>
+  </div>
+  <div class="sc-arena">
+    <div class="sc-product">
+      <img class="sc-img" id="sc-orig-img" src="" alt=""/>
+      <div class="sc-name" id="sc-orig-name">—</div>
+      <div class="sc-price" id="sc-orig-price">—</div>
+    </div>
+    <div class="sc-vs"><div class="sc-vs-text">VS</div></div>
+    <div class="sc-product pick">
+      <img class="sc-img" id="sc-pick-img" src="" alt=""/>
+      <div class="sc-name" id="sc-pick-name">—</div>
+      <div class="sc-price" id="sc-pick-price">—</div>
+    </div>
+  </div>
+  <div class="sc-reason" id="sc-reason">—</div>
+  <div class="sc-footer">
+    <span>counterpick.ai</span>
+    <span id="sc-priority">—</span>
+  </div>
+</div>
+
+<!-- SHARE OVERLAY -->
+<div id="share-overlay">
+  <div class="share-modal" style="position:relative">
+    <button class="share-close" onclick="closeShare()">✕</button>
+    <h3>Share Your Counterpick</h3>
+    <p>Download this card and share it anywhere — Reddit, Discord, Twitter, or send it to a friend.</p>
+    <img id="share-preview" src="" alt="Share preview"/>
+    <div class="share-actions">
+      <button class="share-action-btn primary" onclick="downloadCard()">⬇ Download PNG</button>
+      <button class="share-action-btn" onclick="copyLink()">🔗 Copy Link</button>
+      <button class="share-action-btn" onclick="closeShare()">Close</button>
+    </div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">COUNTER<span>PICK</span></div>
+  <div class="tagline">AI Product Alternatives</div>
+  <div class="mode-tabs">
+    <button class="mode-tab active" onclick="setMode('search')">⚡ Counterpick</button>
+    <button class="mode-tab" onclick="setMode('battle')">⚔ Battle</button>
+  </div>
+</header>
+
+<!-- SEARCH MODE -->
+<div id="view-search" class="view active">
+  <section class="hero">
+    <div class="hero-eyebrow">Find your next upgrade</div>
+    <h1>Beat any<br>product.<br><em>Instantly.</em></h1>
+    <p>Pick your priority, enter a product, and we'll find the one alternative that beats it — same category, better on what matters to you.</p>
+
+    <div class="tier-picker">
+      <button class="tier-btn active" data-tier="best_quality" onclick="setTier(this)"><span class="tier-icon">⭐</span> Best Quality</button>
+      <button class="tier-btn" data-tier="cheapest" onclick="setTier(this)"><span class="tier-icon">💰</span> Cheapest</button>
+      <button class="tier-btn" data-tier="eco_friendly" onclick="setTier(this)"><span class="tier-icon">🌱</span> Eco-Friendly</button>
+      <button class="tier-btn" data-tier="best_battery" onclick="setTier(this)"><span class="tier-icon">🔋</span> Best Battery</button>
+      <button class="tier-btn" data-tier="most_durable" onclick="setTier(this)"><span class="tier-icon">🛡</span> Most Durable</button>
+    </div>
+
+    <div class="search-wrap">
+      <input id="product-input" type="text" placeholder="e.g. Nintendo Switch OLED, AirPods Pro, Dyson V15…" autocomplete="off"/>
+      <button class="search-btn" id="search-btn" onclick="doSearch()">FIND →</button>
+    </div>
+    <div class="examples">
+      <span class="example-tag" onclick="fillExample('Nintendo Switch OLED')">Switch OLED</span>
+      <span class="example-tag" onclick="fillExample('AirPods Pro')">AirPods Pro</span>
+      <span class="example-tag" onclick="fillExample('Dyson V15')">Dyson V15</span>
+      <span class="example-tag" onclick="fillExample('Kindle Paperwhite')">Kindle Paperwhite</span>
+      <span class="example-tag" onclick="fillExample('Peloton Bike')">Peloton Bike</span>
+    </div>
+  </section>
+
+  <div id="loading"><div class="loader-text" id="loading-text">Analyzing counterpick…</div><div class="loader-bar"></div></div>
+  <div id="error-box"></div>
+
+  <div id="result">
+    <div class="result-toolbar">
+      <span class="category-pill" id="r-category-label">—</span>
+      <span class="priority-pill" id="r-priority-label">—</span>
+      <select class="region-select" id="region-select" onchange="updateRegion()">
+        <option value="US">🇺🇸 United States</option>
+        <option value="UK">🇬🇧 United Kingdom</option>
+        <option value="CA">🇨🇦 Canada</option>
+        <option value="AU">🇦🇺 Australia</option>
+        <option value="DE">🇩🇪 Germany</option>
+        <option value="JP">🇯🇵 Japan</option>
+      </select>
+      <button class="share-btn" onclick="openShare()">📤 Share Card</button>
+    </div>
+
+    <div class="vs-arena">
+      <div class="product-card original">
+        <div class="p-label">You picked</div>
+        <div class="product-img-wrap">
+          <div class="img-placeholder" id="orig-placeholder"><div class="spinner"></div><div class="ph-label">Loading…</div></div>
+          <img id="r-orig-img" alt=""/>
+        </div>
+        <div class="p-name" id="r-original">—</div>
+        <div class="p-price-tag" id="r-orig-price">—</div>
+      </div>
+      <div class="vs-col"><div class="vs-text">VS</div></div>
+      <div class="product-card pick">
+        <div class="p-label">★ Counterpick</div>
+        <div class="product-img-wrap">
+          <div class="img-placeholder" id="pick-placeholder"><div class="spinner"></div><div class="ph-label">Loading…</div></div>
+          <img id="r-pick-img" alt=""/>
+        </div>
+        <div class="p-name" id="r-pick">—</div>
+        <div class="p-price-tag" id="r-pick-price">—</div>
+      </div>
+    </div>
+
+    <div class="reason-box" id="r-summary"></div>
+
+    <div class="cards-grid">
+      <div class="card"><div class="card-label">How it beats it</div><ul id="r-beats"></ul></div>
+      <div class="card drawbacks"><div class="card-label">Potential drawbacks</div><ul id="r-drawbacks"></ul></div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-cell"><div class="stat-label">Price comparison</div><div id="r-price"></div></div>
+      <div class="stat-cell"><div class="stat-label">Ideal for</div><div style="font-size:.88rem;color:#bbb;font-weight:300;line-height:1.5" id="r-ideal"></div></div>
+    </div>
+
+    <div class="buy-section" id="buy-section">
+      <div class="card-label">Where to buy</div>
+      <div class="buy-grid" id="r-buy-grid"></div>
+    </div>
+
+    <!-- REDDIT PULSE -->
+    <div class="reddit-section" id="reddit-section" style="display:none">
+      <div class="reddit-header">
+        <div class="reddit-logo">⬆ REDDIT PULSE</div>
+        <div class="sentiment-bar-wrap">
+          <div style="font-family:'Space Mono',monospace;font-size:.55rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase" id="reddit-product-label">—</div>
+          <div class="sentiment-bar-bg"><div class="sentiment-bar-fill" id="sentiment-bar" style="width:0%"></div></div>
+        </div>
+        <div class="sentiment-score" id="sentiment-score">—</div>
+      </div>
+      <div class="top-insight" id="reddit-insight">—</div>
+      <div class="reddit-grid">
+        <div class="reddit-col"><div class="card-label">Reddit loves it for</div><ul class="loved" id="reddit-loved"></ul></div>
+        <div class="reddit-col"><div class="card-label">Reddit criticizes</div><ul class="criticized" id="reddit-criticized"></ul></div>
+      </div>
+      <div class="reddit-quotes" id="reddit-quotes"></div>
+    </div>
+    <button class="reddit-load-btn" id="reddit-btn" onclick="loadReddit()" style="display:none">⬆ Load Reddit Pulse for counterpick</button>
+  </div>
+</div>
+
+<!-- BATTLE MODE -->
+<div id="view-battle" class="view">
+  <section class="hero">
+    <div class="hero-eyebrow">Battle Mode</div>
+    <h1>You pick.<br>AI<br><em>judges.</em></h1>
+    <p>Enter two products and get a full head-to-head scorecard. No guessing — just data.</p>
+    <div class="battle-wrap">
+      <div class="battle-input-box"><input id="battle-input-a" type="text" placeholder="Product A  e.g. Sony WH-1000XM5" autocomplete="off"/></div>
+      <div class="battle-vs-sep">VS</div>
+      <div class="battle-input-box"><input id="battle-input-b" type="text" placeholder="Product B  e.g. Bose QC45" autocomplete="off"/></div>
+    </div>
+    <button class="battle-go" id="battle-btn" onclick="doBattle()">⚔ START BATTLE →</button>
+    <div class="examples" style="margin-top:1.2rem">
+      <span class="example-tag" onclick="fillBattle('Sony WH-1000XM5','Bose QuietComfort 45')">Sony XM5 vs Bose QC45</span>
+      <span class="example-tag" onclick="fillBattle('iPhone 15 Pro','Samsung Galaxy S24 Ultra')">iPhone 15 Pro vs S24 Ultra</span>
+      <span class="example-tag" onclick="fillBattle('Nintendo Switch OLED','Steam Deck OLED')">Switch OLED vs Steam Deck</span>
+    </div>
+  </section>
+
+  <div id="battle-loading" style="display:none"><div class="loader-text">Running battle analysis…</div><div class="loader-bar"></div></div>
+  <div id="battle-error" style="display:none;max-width:580px;margin:2rem auto;border:1px solid var(--accent);padding:1.2rem;color:var(--accent);font-family:'Space Mono',monospace;font-size:.78rem;text-align:center"></div>
+
+  <div id="battle-result">
+    <div style="max-width:900px;margin:0 auto;padding:0 2rem 5rem">
+      <div class="battle-scorecard">
+        <div class="battle-header">
+          <div class="battle-product" id="b-product-a">
+            <div class="bp-label">Product A</div>
+            <div class="bp-name" id="b-name-a">—</div>
+            <div class="bp-price" id="b-price-a">—</div>
+          </div>
+          <div style="text-align:center">
+            <div class="battle-crown" id="b-crown">⚔</div>
+            <div class="winner-badge" id="b-winner-badge">—</div>
+          </div>
+          <div class="battle-product" id="b-product-b">
+            <div class="bp-label">Product B</div>
+            <div class="bp-name" id="b-name-b">—</div>
+            <div class="bp-price" id="b-price-b">—</div>
+          </div>
+        </div>
+
+        <div class="verdict-box" id="b-verdict">—</div>
+
+        <!-- Scorecard legend -->
+        <div style="display:flex;gap:1.5rem;margin-bottom:1rem;font-family:'Space Mono',monospace;font-size:.55rem;letter-spacing:.1em;color:var(--muted);text-transform:uppercase">
+          <span style="display:flex;align-items:center;gap:.4rem"><span style="width:10px;height:10px;background:var(--blue);border-radius:2px;display:inline-block"></span>Product A</span>
+          <span style="display:flex;align-items:center;gap:.4rem"><span style="width:10px;height:10px;background:var(--accent);border-radius:2px;display:inline-block"></span>Product B</span>
+        </div>
+        <div id="b-scorecard"></div>
+
+        <div class="buy-verdict">
+          <div class="buy-verdict-cell"><div class="bv-label">Buy A if…</div><div class="bv-text" id="b-buy-a">—</div></div>
+          <div class="buy-verdict-cell"><div class="bv-label">Buy B if…</div><div class="bv-text" id="b-buy-b">—</div></div>
+        </div>
+        <div class="battle-buy-row" id="b-buy-row"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Counterpick — AI-powered product intelligence &nbsp;·&nbsp; Prices are estimates — always verify before buying</footer>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────────────────────
+let currentMode = 'search';
+let selectedTier = 'best_quality';
+let lastResult = null;
+let currentRegion = 'US';
+
+// ── MODE / TIER ───────────────────────────────────────────────────────────────
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-tab').forEach((t,i) => t.classList.toggle('active', (i===0&&mode==='search')||(i===1&&mode==='battle')));
+  document.getElementById('view-search').classList.toggle('active', mode==='search');
+  document.getElementById('view-battle').classList.toggle('active', mode==='battle');
+}
+
+function setTier(btn) {
+  document.querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  selectedTier = btn.dataset.tier;
+}
+
+function fillExample(name) { document.getElementById('product-input').value = name; doSearch(); }
+function fillBattle(a, b) { document.getElementById('battle-input-a').value = a; document.getElementById('battle-input-b').value = b; doBattle(); }
+
+document.getElementById('product-input').addEventListener('keydown', e => { if(e.key==='Enter') doSearch(); });
+document.getElementById('battle-input-a').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('battle-input-b').focus(); });
+document.getElementById('battle-input-b').addEventListener('keydown', e => { if(e.key==='Enter') doBattle(); });
+
+// ── IMAGE FETCH ───────────────────────────────────────────────────────────────
+async function fetchProductImage(searchQuery, imgEl, placeholderEl) {
+  const sources = [
+    () => scrapeGoogleImages(searchQuery),
+    () => scrapeBingImages(searchQuery),
+    () => scrapeAmazon(searchQuery),
+  ];
+  for (const src of sources) {
+    try {
+      const url = await src();
+      if (!url) continue;
+      const proxied = `https://images.weserv.nl/?url=${encodeURIComponent(url)}&w=300&h=300&fit=contain&bg=0d0d0d&output=webp`;
+      if (await tryLoad(imgEl, proxied)) { placeholderEl.style.display='none'; imgEl.style.display='block'; return; }
+      if (await tryLoad(imgEl, url))    { placeholderEl.style.display='none'; imgEl.style.display='block'; return; }
+    } catch(e) {}
+  }
+  showMonogram(placeholderEl, searchQuery);
+}
+
+function tryLoad(imgEl, src) {
+  return new Promise(res => {
+    const t = setTimeout(() => res(false), 6000);
+    imgEl.onload  = () => { clearTimeout(t); res(true); };
+    imgEl.onerror = () => { clearTimeout(t); res(false); };
+    imgEl.src = src;
+  });
+}
+
+async function scrapeGoogleImages(q) {
+  const url = `https://www.google.com/search?q=${encodeURIComponent(q+' product')}&tbm=isch&hl=en`;
+  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(7000)});
+  const d = await r.json();
+  const matches = (d.contents||'').match(/"ou":"(https?:\/\/[^"]+?)"/g)||[];
+  for (const m of matches) {
+    const u = m.replace(/"ou":"/, '').replace(/"$/, '');
+    if (!u.match(/\.(svg|gif)/i) && !u.includes('logo') && !u.includes('icon')) return decodeURIComponent(u);
+  }
+  return null;
+}
+
+async function scrapeBingImages(q) {
+  const url = `https://www.bing.com/images/search?q=${encodeURIComponent(q)}&first=1`;
+  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(7000)});
+  const d = await r.json();
+  const m = (d.contents||'').match(/murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/);
+  if (m) return m[1];
+  const m2 = (d.contents||'').match(/"murl":"(https?:\/\/[^"]+?)"/);
+  return m2 ? m2[1] : null;
+}
+
+async function scrapeAmazon(q) {
+  const url = `https://www.amazon.com/s?k=${encodeURIComponent(q)}`;
+  const r = await fetch(`https://api.allorigins.win/get?url=${encodeURIComponent(url)}`, {signal:AbortSignal.timeout(7000)});
+  const d = await r.json();
+  const m = (d.contents||'').match(/src="(https:\/\/m\.media-amazon\.com\/images\/[^"]+?)"/);
+  return m ? m[1] : null;
+}
+
+function showMonogram(ph, name) {
+  const i = (name||'?').trim().charAt(0).toUpperCase();
+  ph.innerHTML = `<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg"><rect width="80" height="80" fill="#161616"/><text x="40" y="54" font-family="Bebas Neue,sans-serif" font-size="46" fill="#ff3b00" text-anchor="middle" opacity=".8">${i}</text></svg><div class="ph-label" style="opacity:.4">No image</div>`;
+  ph.style.display='flex';
+}
+
+function resetImg(imgId, phId) {
+  const img = document.getElementById(imgId);
+  img.src=''; img.style.display='none';
+  const ph = document.getElementById(phId);
+  ph.innerHTML='<div class="spinner"></div><div class="ph-label">Loading…</div>';
+  ph.style.display='flex';
+}
+
+// ── COUNTERPICK SEARCH ────────────────────────────────────────────────────────
+async function doSearch() {
+  const product = document.getElementById('product-input').value.trim();
+  if (!product) return;
+
+  document.getElementById('result').style.display='none';
+  document.getElementById('error-box').style.display='none';
+  document.getElementById('loading').style.display='block';
+  document.getElementById('search-btn').disabled=true;
+  document.getElementById('loading-text').textContent='Analyzing counterpick…';
+  resetImg('r-orig-img','orig-placeholder');
+  resetImg('r-pick-img','pick-placeholder');
+
+  try {
+    const res = await fetch('/api/counterpick',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product,priority:selectedTier})});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    lastResult = data;
+    renderResult(data);
+  } catch(err) { showError(err.message||'Something went wrong.'); }
+  finally { document.getElementById('loading').style.display='none'; document.getElementById('search-btn').disabled=false; }
+}
+
+function renderResult(d) {
+  document.getElementById('r-category-label').textContent = d.original_category||'Product';
+  document.getElementById('r-priority-label').textContent = d.priority_angle||selectedTier.replace('_',' ');
+
+  document.getElementById('r-original').textContent = d.original_product||'—';
+  document.getElementById('r-pick').textContent = d.counterpick_product||'—';
+  document.getElementById('r-orig-price').textContent = d.original_price_estimate||'—';
+  document.getElementById('r-pick-price').textContent = d.counterpick_price_estimate||'—';
+
+  const origSearch = d.original_product_search||d.original_product||'';
+  const pickSearch = d.counterpick_product_search||d.counterpick_product||'';
+  document.getElementById('r-orig-img').alt = origSearch;
+  document.getElementById('r-pick-img').alt = pickSearch;
+  fetchProductImage(origSearch, document.getElementById('r-orig-img'), document.getElementById('orig-placeholder'));
+  fetchProductImage(pickSearch, document.getElementById('r-pick-img'), document.getElementById('pick-placeholder'));
+
+  document.getElementById('r-summary').textContent = d.reason_summary||'';
+
+  ['r-beats','r-drawbacks'].forEach((id,i) => {
+    const ul = document.getElementById(id);
+    ul.innerHTML='';
+    (i===0?d.how_it_beats_it:d.potential_drawbacks||[]).forEach(item => { const li=document.createElement('li'); li.textContent=item; ul.appendChild(li); });
+  });
+
+  const pr = (d.price_tier_comparison||'').toLowerCase().trim();
+  const cls = {cheaper:'cheaper',similar:'similar','more expensive':'more-expensive'}[pr]||'similar';
+  const lbl = {cheaper:'↓ Cheaper',similar:'≈ Similar',['more expensive']:'↑ More Expensive'}[pr]||pr;
+  document.getElementById('r-price').innerHTML = `<span class="price-badge ${cls}">${lbl}</span>`;
+  document.getElementById('r-ideal').textContent = d.ideal_for||'—';
+
+  renderBuyGrid('r-buy-grid', d, 'US');
+  document.getElementById('region-select').value = 'US';
+  currentRegion = 'US';
+
+  // Reddit button
+  document.getElementById('reddit-section').style.display='none';
+  document.getElementById('reddit-btn').style.display='block';
+  document.getElementById('reddit-btn').textContent=`⬆ Load Reddit Pulse — ${d.counterpick_product}`;
+  document.getElementById('reddit-btn').disabled=false;
+
+  document.getElementById('result').style.display='block';
+  document.getElementById('result').scrollIntoView({behavior:'smooth',block:'start'});
+
+  // Populate share card data
+  populateShareCard(d);
+}
+
+function renderBuyGrid(gridId, d, region) {
+  const grid = document.getElementById(gridId);
+  grid.innerHTML='';
+  let targets = d.affiliate_targets||[];
+  if (region !== 'US' && d.regional_stores && d.regional_stores[region]) {
+    const rs = d.regional_stores[region];
+    targets = [rs, ...(d.affiliate_targets||[]).slice(1)];
+  }
+  targets.forEach(t => {
+    const store = typeof t==='object'?t.store:t;
+    const url   = typeof t==='object'?(t.url||'#'):'#';
+    const price = typeof t==='object'?(t.price||'Check site'):'Check site';
+    const a = document.createElement('a');
+    a.className='buy-card'; a.href=url; a.target='_blank'; a.rel='noopener noreferrer';
+    a.innerHTML=`<div class="buy-store">${store}</div><div class="buy-price">${price}</div><div class="buy-cta">Shop now →</div>`;
+    grid.appendChild(a);
+  });
+}
+
+function updateRegion() {
+  if (!lastResult) return;
+  currentRegion = document.getElementById('region-select').value;
+  renderBuyGrid('r-buy-grid', lastResult, currentRegion);
+}
+
+// ── REDDIT PULSE ──────────────────────────────────────────────────────────────
+async function loadReddit() {
+  if (!lastResult) return;
+  const btn = document.getElementById('reddit-btn');
+  btn.disabled=true; btn.textContent='Loading Reddit pulse…';
+  try {
+    const res = await fetch('/api/reddit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product:lastResult.counterpick_product})});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderReddit(data, lastResult.counterpick_product);
+  } catch(e) { btn.textContent='Failed to load. Try again.'; btn.disabled=false; }
+}
+
+function renderReddit(d, productName) {
+  document.getElementById('reddit-product-label').textContent = productName;
+  document.getElementById('sentiment-score').textContent = (d.sentiment_score||0)+'/10';
+  document.getElementById('sentiment-bar').style.width = ((d.sentiment_score||0)*10)+'%';
+  document.getElementById('reddit-insight').textContent = d.top_insight||'—';
+
+  ['reddit-loved','reddit-criticized'].forEach((id,i) => {
+    const ul = document.getElementById(id); ul.innerHTML='';
+    (i===0?d.loved_for:d.criticized_for||[]).forEach(item => { const li=document.createElement('li'); li.textContent=item; ul.appendChild(li); });
+  });
+
+  const qc = document.getElementById('reddit-quotes'); qc.innerHTML='';
+  (d.sample_quotes||[]).forEach(q => {
+    const el=document.createElement('div'); el.className='reddit-quote';
+    el.innerHTML=`<div class="quote-text">"${q.quote}"</div><div class="quote-meta"><span class="quote-sentiment-dot ${q.sentiment||'neutral'}"></span><span class="quote-source">${q.source||'r/reddit'}</span></div>`;
+    qc.appendChild(el);
+  });
+
+  document.getElementById('reddit-section').style.display='block';
+  document.getElementById('reddit-btn').style.display='none';
+}
+
+// ── BATTLE MODE ───────────────────────────────────────────────────────────────
+async function doBattle() {
+  const a = document.getElementById('battle-input-a').value.trim();
+  const b = document.getElementById('battle-input-b').value.trim();
+  if (!a||!b) return;
+
+  document.getElementById('battle-result').style.display='none';
+  document.getElementById('battle-error').style.display='none';
+  document.getElementById('battle-loading').style.display='block';
+  document.getElementById('battle-btn').disabled=true;
+
+  try {
+    const res = await fetch('/api/battle',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({product_a:a,product_b:b})});
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    renderBattle(data);
+  } catch(err) {
+    const el=document.getElementById('battle-error');
+    el.textContent='⚠ '+(err.message||'Something went wrong.');
+    el.style.display='block';
+  }
+  finally { document.getElementById('battle-loading').style.display='none'; document.getElementById('battle-btn').disabled=false; }
+}
+
+function renderBattle(d) {
+  const winner = (d.winner||'').toUpperCase();
+  document.getElementById('b-name-a').textContent = d.product_a||'—';
+  document.getElementById('b-name-b').textContent = d.product_b||'—';
+  document.getElementById('b-price-a').textContent = d.product_a_price||'';
+  document.getElementById('b-price-b').textContent = d.product_b_price||'';
+
+  document.getElementById('b-product-a').className = 'battle-product'+(winner==='A'?' winner-a':'');
+  document.getElementById('b-product-b').className = 'battle-product'+(winner==='B'?' winner-b':'');
+
+  const crown = winner==='A'?'🏆 &nbsp;':'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;';
+  const crownB = winner==='B'?'&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 🏆':'';
+  document.getElementById('b-crown').textContent = winner==='TIE'?'🤝':'⚔';
+  const badge = document.getElementById('b-winner-badge');
+  if (winner==='TIE') { badge.textContent='TIE'; badge.className='winner-badge tie'; }
+  else { badge.textContent=(winner==='A'?d.product_a:d.product_b)||'Winner'; badge.className='winner-badge gold'; }
+
+  document.getElementById('b-verdict').textContent = d.verdict_summary||'—';
+
+  const sc = document.getElementById('b-scorecard'); sc.innerHTML='';
+  (d.scorecard||[]).forEach(row => {
+    const aScore = row.a_score||0; const bScore = row.b_score||0;
+    const maxS = Math.max(aScore,bScore,1);
+    const div=document.createElement('div'); div.className='score-row';
+    div.innerHTML=`
+      <div style="text-align:right">
+        <span class="score-num a">${aScore}</span>
+        <div class="score-bars" style="justify-content:flex-end"><div class="score-bar-a" style="width:${(aScore/10)*80}px"></div></div>
+      </div>
+      <div class="score-dim">${row.dimension||'—'}<div class="score-note">${row.note||''}</div></div>
+      <div>
+        <span class="score-num b">${bScore}</span>
+        <div class="score-bars"><div class="score-bar-b" style="width:${(bScore/10)*80}px"></div></div>
+      </div>`;
+    sc.appendChild(div);
+  });
+
+  document.getElementById('b-buy-a').textContent = d.buy_a_if||'—';
+  document.getElementById('b-buy-b').textContent = d.buy_b_if||'—';
+
+  const buyRow = document.getElementById('b-buy-row'); buyRow.innerHTML='';
+  [[d.affiliate_a,'A',d.product_a],[d.affiliate_b,'B',d.product_b]].forEach(([aff,side,name]) => {
+    if (!aff) return;
+    const a=document.createElement('a'); a.className='buy-card'; a.href=aff.url||'#'; a.target='_blank'; a.rel='noopener noreferrer';
+    a.innerHTML=`<div class="buy-store">${aff.store||'Amazon'} — ${name}</div><div class="buy-price">${aff.price||'Check site'}</div><div class="buy-cta">Buy Product ${side} →</div>`;
+    buyRow.appendChild(a);
+  });
+
+  document.getElementById('battle-result').style.display='block';
+  document.getElementById('battle-result').scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+// ── SHARE CARD ────────────────────────────────────────────────────────────────
+function populateShareCard(d) {
+  document.getElementById('sc-cat').textContent = d.original_category||'Product';
+  document.getElementById('sc-orig-name').textContent = d.original_product||'—';
+  document.getElementById('sc-pick-name').textContent = d.counterpick_product||'—';
+  document.getElementById('sc-orig-price').textContent = d.original_price_estimate||'—';
+  document.getElementById('sc-pick-price').textContent = d.counterpick_price_estimate||'—';
+  document.getElementById('sc-reason').textContent = d.reason_summary||'';
+  document.getElementById('sc-priority').textContent = 'Priority: '+(d.priority_angle||selectedTier);
+  // Copy images
+  const origImg = document.getElementById('r-orig-img');
+  const pickImg = document.getElementById('r-pick-img');
+  if (origImg.src) document.getElementById('sc-orig-img').src = origImg.src;
+  if (pickImg.src) document.getElementById('sc-pick-img').src = pickImg.src;
+}
+
+async function openShare() {
+  if (!lastResult) return;
+  populateShareCard(lastResult);
+  // Give images a moment to sync
+  await new Promise(r => setTimeout(r, 300));
+  const card = document.getElementById('share-card');
+  card.style.left = '-9999px';
+  card.style.position = 'fixed';
+  try {
+    const canvas = await html2canvas(card, {backgroundColor:'#0a0a0a',scale:2,useCORS:true,allowTaint:true,logging:false});
+    const dataUrl = canvas.toDataURL('image/png');
+    document.getElementById('share-preview').src = dataUrl;
+    document.getElementById('share-overlay').classList.add('open');
+    window._shareDataUrl = dataUrl;
+  } catch(e) { alert('Could not generate share card. Try again.'); }
+}
+
+function downloadCard() {
+  if (!window._shareDataUrl) return;
+  const a = document.createElement('a');
+  a.href = window._shareDataUrl;
+  a.download = 'counterpick-' + (lastResult?.counterpick_product||'card').replace(/\s+/g,'-').toLowerCase() + '.png';
+  a.click();
+}
+
+function copyLink() {
+  const text = `🎯 COUNTERPICK: ${lastResult?.original_product} ➜ ${lastResult?.counterpick_product}\n${lastResult?.reason_summary}`;
+  navigator.clipboard.writeText(text).then(() => alert('Copied to clipboard!'));
+}
+
+function closeShare() { document.getElementById('share-overlay').classList.remove('open'); }
+
+function showError(msg) { const el=document.getElementById('error-box'); el.textContent='⚠ '+msg; el.style.display='block'; }
+</script>
+</body>
+</html>
