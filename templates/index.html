@@ -38,67 +38,6 @@ async function doTop10() {
   }
 }
 
-function renderTop10(d) {
-  document.getElementById('top10-icon').textContent = d.category_icon || '🏆';
-  document.getElementById('top10-category-title').textContent = d.category || '—';
-  document.getElementById('top10-ranking-basis').textContent = d.ranking_basis || '';
-  document.getElementById('top10-meta').innerHTML = `Updated: ${d.last_updated||'2025'}<br>${(d.products||[]).length} products ranked`;
-
-  const grid = document.getElementById('top10-grid');
-  grid.innerHTML = '';
-
-  (d.products || []).forEach((p, idx) => {
-    const rank = p.rank || (idx + 1);
-    const tierClass = (p.price_tier||'mid-range').replace(' ','-').toLowerCase();
-    const awardClass = p.award ? (p.award.toLowerCase().includes('overall') ? 'best-overall' : p.award.toLowerCase().includes('budget') ? 'best-budget' : 'default') : '';
-
-    const card = document.createElement('div');
-    card.className = `top10-card rank-${rank <= 3 ? rank : 'other'}`;
-
-    card.innerHTML = `
-      <div class="rank-block">
-        <div class="rank-num">${rank}</div>
-        <div class="top10-img-wrap" id="t10-img-wrap-${idx}">
-          <div class="mini-spinner" id="t10-spinner-${idx}"></div>
-          <img id="t10-img-${idx}" alt="${p.product_search||p.name||''}"/>
-        </div>
-        <div class="score-bar-mini"><div class="score-bar-mini-fill" style="width:${p.score||0}%"></div></div>
-        <div class="rank-score">${p.score||0}/100</div>
-      </div>
-      <div class="top10-main">
-        <div class="top10-title-row">
-          <div class="top10-name">${p.name||'—'}</div>
-          ${p.award ? `<span class="award-badge ${awardClass}">${p.award}</span>` : ''}
-        </div>
-        <div class="top10-tagline">${p.tagline||''}</div>
-        <div class="top10-specs">
-          ${(p.key_specs||[]).map(s => `<span class="spec-chip">${s}</span>`).join('')}
-        </div>
-        <div class="top10-pros-cons">
-          <ul class="mini-list pros">${(p.pros||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
-          <ul class="mini-list cons">${(p.cons||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
-        </div>
-      </div>
-      <div class="top10-right">
-        <div class="top10-price">${p.price_estimate||'—'}</div>
-        <span class="price-tier-chip ${tierClass}">${p.price_tier||'mid-range'}</span>
-        <a class="top10-buy-btn" href="${p.buy_url||'#'}" target="_blank" rel="noopener">Buy Now →</a>
-      </div>
-    `;
-    grid.appendChild(card);
-
-    // Lazy-load image
-    const searchQuery = p.product_search || p.name || '';
-    const imgEl = document.getElementById(`t10-img-${idx}`);
-    const spinEl = document.getElementById(`t10-spinner-${idx}`);
-    loadImage(searchQuery, imgEl, spinEl, 120);
-  });
-
-  document.getElementById('top10-result').style.display = 'block';
-  document.getElementById('top10-result').scrollIntoView({behavior:'smooth', block:'start'});
-}
-
-
 // ── IMAGE FETCHING ─────────────────────────────────────────────────────────
 const CORS_PROXIES = [
   url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
@@ -204,6 +143,70 @@ async function loadImage(query, imgEl, placeholderEl, size) {
   }
 }
 // ── END IMAGE FETCHING ─────────────────────────────────────────────────────
+
+function renderTop10(d) {
+  document.getElementById('top10-icon').textContent = d.category_icon || '🏆';
+  document.getElementById('top10-category-title').textContent = d.category || '—';
+  document.getElementById('top10-ranking-basis').textContent = d.ranking_basis || '';
+  document.getElementById('top10-meta').innerHTML = `Updated: ${d.last_updated||'2025'}<br>${(d.products||[]).length} products ranked`;
+
+  const grid = document.getElementById('top10-grid');
+  grid.innerHTML = '';
+
+  (d.products || []).forEach((p, idx) => {
+    const rank = p.rank || (idx + 1);
+    const tierClass = (p.price_tier||'mid-range').replace(' ','-').toLowerCase();
+    const awardClass = p.award ? (p.award.toLowerCase().includes('overall') ? 'best-overall' : p.award.toLowerCase().includes('budget') ? 'best-budget' : 'default') : '';
+
+    const card = document.createElement('div');
+    card.className = `top10-card rank-${rank <= 3 ? rank : 'other'}`;
+
+    card.innerHTML = `
+      <div class="rank-block">
+        <div class="rank-num">${rank}</div>
+        <div class="top10-img-wrap" id="t10-img-wrap-${idx}">
+          <div class="mini-spinner" id="t10-spinner-${idx}"></div>
+          <img id="t10-img-${idx}" alt="${p.product_search||p.name||''}"/>
+        </div>
+        <div class="score-bar-mini"><div class="score-bar-mini-fill" style="width:${p.score||0}%"></div></div>
+        <div class="rank-score">${p.score||0}/100</div>
+      </div>
+      <div class="top10-main">
+        <div class="top10-title-row">
+          <div class="top10-name">${p.name||'—'}</div>
+          ${p.award ? `<span class="award-badge ${awardClass}">${p.award}</span>` : ''}
+        </div>
+        <div class="top10-tagline">${p.tagline||''}</div>
+        <div class="top10-specs">
+          ${(p.key_specs||[]).map(s => `<span class="spec-chip">${s}</span>`).join('')}
+        </div>
+        <div class="top10-pros-cons">
+          <ul class="mini-list pros">${(p.pros||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
+          <ul class="mini-list cons">${(p.cons||[]).map(x=>`<li>${x}</li>`).join('')}</ul>
+        </div>
+      </div>
+      <div class="top10-right">
+        <div class="top10-price">${p.price_estimate||'—'}</div>
+        <span class="price-tier-chip ${tierClass}">${p.price_tier||'mid-range'}</span>
+        <a class="top10-buy-btn" href="${p.buy_url||'#'}" target="_blank" rel="noopener">Buy Now →</a>
+      </div>
+    `;
+    grid.appendChild(card);
+
+    // Lazy-load image
+    const searchQuery = p.product_search || p.name || '';
+    const imgEl = document.getElementById(`t10-img-${idx}`);
+    const spinEl = document.getElementById(`t10-spinner-${idx}`);
+    loadImage(searchQuery, imgEl, spinEl, 120);
+  });
+
+  document.getElementById('top10-result').style.display = 'block';
+  document.getElementById('top10-result').scrollIntoView({behavior:'smooth', block:'start'});
+}
+
+
+
+
 </script>
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -904,6 +907,114 @@ async function loadImage(query, imgEl, placeholderEl, size) {
 <footer>Counterpick — AI-powered product intelligence &nbsp;·&nbsp; Prices are estimates — always verify before buying</footer>
 
 <script>
+// ── IMAGE FETCHING ─────────────────────────────────────────────────────────
+const CORS_PROXIES = [
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+  url => `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(url)}`,
+];
+
+async function fetchWithProxy(url, proxyIndex = 0) {
+  if (proxyIndex >= CORS_PROXIES.length) return null;
+  try {
+    const proxied = CORS_PROXIES[proxyIndex](url);
+    const res = await fetch(proxied, { signal: AbortSignal.timeout(7000) });
+    if (!res.ok) return fetchWithProxy(url, proxyIndex + 1);
+    const text = await res.text();
+    try { const j = JSON.parse(text); return j.contents || text; } catch { return text; }
+  } catch { return fetchWithProxy(url, proxyIndex + 1); }
+}
+
+async function getProductImageUrl(query) {
+  if (!query) return null;
+  const q = encodeURIComponent(query);
+
+  // 1: DuckDuckGo 2-step
+  try {
+    const html = await fetchWithProxy('https://duckduckgo.com/?q=' + q + '&ia=images&iax=images');
+    if (html) {
+      const vqdM = html.match(/vqd=["']?([0-9-]+)["']?/);
+      if (vqdM) {
+        const jsonText = await fetchWithProxy(
+          'https://duckduckgo.com/i.js?q=' + q + '&vqd=' + vqdM[1] + '&o=json&p=1&s=0&u=bing&f=,,,&l=us-en'
+        );
+        if (jsonText) {
+          const data = JSON.parse(jsonText);
+          for (const r of (data.results || []).slice(0, 8)) {
+            const img = r.image || r.thumbnail || '';
+            if (img && !/logo|icon|sprite|\.svg|\.gif/i.test(img)) return img;
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // 2: Bing Images
+  try {
+    const html = await fetchWithProxy('https://www.bing.com/images/search?q=' + q + '&first=1');
+    if (html) {
+      const m = html.match(/murl&quot;:&quot;(https?:\/\/[^&]+?)&quot;/)
+             || html.match(/"murl":"(https?:\/\/[^"]+?)"/);
+      if (m && !/logo|icon|\.svg|\.gif/i.test(m[1])) return m[1];
+    }
+  } catch {}
+
+  // 3: Google Images
+  try {
+    const html = await fetchWithProxy('https://www.google.com/search?q=' + q + '+product&tbm=isch');
+    if (html) {
+      const matches = [...html.matchAll(/"ou":"(https?:\/\/[^"]+?)"/g)];
+      for (const m of matches.slice(0, 5)) {
+        if (!/logo|icon|\.svg|\.gif/i.test(m[1])) return decodeURIComponent(m[1]);
+      }
+    }
+  } catch {}
+
+  // 4: Amazon
+  try {
+    const html = await fetchWithProxy('https://www.amazon.com/s?k=' + q);
+    if (html) {
+      const m = html.match(/src="(https:\/\/m\.media-amazon\.com\/images\/I\/[^"]+?\.jpg)"/);
+      if (m) return m[1];
+    }
+  } catch {}
+
+  return null;
+}
+
+function tryLoad(imgEl, src) {
+  return new Promise(res => {
+    const t = setTimeout(() => res(false), 8000);
+    imgEl.onload  = () => { clearTimeout(t); res(true); };
+    imgEl.onerror = () => { clearTimeout(t); res(false); };
+    imgEl.src = src;
+  });
+}
+
+async function loadImage(query, imgEl, placeholderEl, size) {
+  size = size || 300;
+  try {
+    const url = await getProductImageUrl(query);
+    if (url) {
+      const proxied = 'https://images.weserv.nl/?url=' + encodeURIComponent(url) + '&w=' + size + '&h=' + size + '&fit=contain&bg=0d0d0d&output=webp';
+      if (await tryLoad(imgEl, proxied) || await tryLoad(imgEl, url)) {
+        if (placeholderEl) placeholderEl.style.display = 'none';
+        imgEl.style.display = 'block';
+        return;
+      }
+    }
+  } catch {}
+  // Styled fallback
+  const initial = (query || '?').trim()[0].toUpperCase();
+  const shortName = (query || '').trim().slice(0, 22).toUpperCase();
+  if (placeholderEl) {
+    placeholderEl.innerHTML = '<div style="text-align:center;padding:1rem"><div style="font-family:Bebas Neue,sans-serif;font-size:3rem;color:#ff3b00;opacity:.7;line-height:1">' + initial + '</div><div style="font-family:Space Mono,monospace;font-size:.5rem;color:#555;letter-spacing:.1em;margin-top:.5rem;text-transform:uppercase;line-height:1.4">' + shortName + '</div></div>';
+  }
+}
+// ── END IMAGE FETCHING ─────────────────────────────────────────────────────
+
+
+
 // ── STATE ─────────────────────────────────────────────────────────────────────
 let currentMode = 'search';
 let selectedTier = 'best_quality';
